@@ -1,0 +1,47 @@
+---
+# cPanel Git Version Control deployment.
+#
+# Repository:  /home/shooting/repositories/association_management
+# Destination: /home/shooting/public_html/habitract.com  (the domain doc root)
+#
+# The full project structure is deployed to the document root. The root
+# .htaccess routes all traffic into public/ (the front controller), so the
+# application source above public/ — app/, config/, .env, storage/, vendor/ —
+# is never served directly.
+#
+# NOT deployed / preserved on the server (do these once, out of band):
+#   * .env               — create it on the server; it is intentionally not in
+#                          the repo and is never overwritten by a deploy.
+#   * vendor/            — run `composer install --no-dev` on the server after
+#                          the first deploy (and whenever composer.lock changes).
+#   * storage/uploads/*  — user-uploaded photos persist across deploys.
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/shooting/public_html/habitract.com
+
+    # Ensure the destination and writable runtime dirs exist.
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/storage/logs $DEPLOYPATH/storage/cache
+    - /bin/mkdir -p $DEPLOYPATH/storage/uploads/members $DEPLOYPATH/storage/uploads/projects $DEPLOYPATH/storage/uploads/associations
+
+    # Application code (structure preserved; public/ is the web-exposed part).
+    - /bin/cp -R app $DEPLOYPATH/
+    - /bin/cp -R public $DEPLOYPATH/
+    - /bin/cp -R config $DEPLOYPATH/
+    - /bin/cp -R routes $DEPLOYPATH/
+    - /bin/cp -R database $DEPLOYPATH/
+    - /bin/cp -R bin $DEPLOYPATH/
+    - /bin/cp -R resources $DEPLOYPATH/
+
+    # Routing + dependency manifests (needed for composer install on the server).
+    - /bin/cp .htaccess $DEPLOYPATH/.htaccess
+    - /bin/cp composer.json $DEPLOYPATH/composer.json
+    - /bin/cp composer.lock $DEPLOYPATH/composer.lock
+
+    # Keep vendor/ in sync when it exists in the repo clone (optional).
+    - "if [ -d vendor ]; then /bin/cp -R vendor $DEPLOYPATH/; fi"
+
+    # Permissions: readable app, writable storage for logs/cache/uploads.
+    - /bin/find $DEPLOYPATH/app $DEPLOYPATH/config $DEPLOYPATH/public $DEPLOYPATH/routes $DEPLOYPATH/database $DEPLOYPATH/bin -type d -exec chmod 755 {} +
+    - /bin/find $DEPLOYPATH/app $DEPLOYPATH/config $DEPLOYPATH/public $DEPLOYPATH/routes $DEPLOYPATH/database $DEPLOYPATH/bin -type f -exec chmod 644 {} +
+    - /bin/chmod -R 775 $DEPLOYPATH/storage
