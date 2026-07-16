@@ -1,0 +1,27 @@
+# Route all requests through the front controller.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Serve existing files/directories (assets) directly.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Everything else goes to index.php.
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Never allow PHP execution in the uploads directory.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+# Basic security headers (also set in PHP for servers without these modules).
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Disable directory listing.
+Options -Indexes

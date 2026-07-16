@@ -1,0 +1,5 @@
+# If the web root is accidentally set to the project root, forward to public/.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
