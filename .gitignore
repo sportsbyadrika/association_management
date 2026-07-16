@@ -12,8 +12,9 @@
 /public/assets/uploads/*
 /storage/database.sqlite
 
-# Keep directory placeholders
+# Keep directory placeholders and the uploads hardening rules
 !**/.gitkeep
+!/public/assets/uploads/.htaccess
 
 # Editor / OS
 .DS_Store

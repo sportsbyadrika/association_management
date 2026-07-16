@@ -1,0 +1,15 @@
+# Serve files here as static only; never execute scripts.
+Options -Indexes -ExecCGI
+
+# Strip any script handlers so uploads can never be executed, regardless of
+# the PHP SAPI in use (mod_php, PHP-FPM, suPHP, LiteSpeed). Avoid
+# `php_flag engine off`, which errors or over-disables PHP on non-mod_php hosts.
+<IfModule mod_mime.c>
+    RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .pht .phar .cgi .pl .py
+    RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .pht .phar
+    AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .php8 .pht .phar
+</IfModule>
+
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|php8|pht|phar|cgi|pl|py)$">
+    Require all denied
+</FilesMatch>
