@@ -52,6 +52,12 @@ set_error_handler(static function (int $severity, string $message, string $file,
     if (!(error_reporting() & $severity)) {
         return false;
     }
+    // Log (don't halt on) deprecations/notices — throwing on these can break
+    // mid-stream output such as CSV downloads. Escalate real warnings/errors.
+    if (in_array($severity, [E_DEPRECATED, E_USER_DEPRECATED, E_NOTICE, E_USER_NOTICE, E_STRICT], true)) {
+        Logger::warning($message, ['file' => $file, 'line' => $line]);
+        return true;
+    }
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 
