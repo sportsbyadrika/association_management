@@ -1,5 +1,25 @@
-# If the web root is accidentally set to the project root, forward to public/.
+# When the document root is the project root (e.g. a cPanel deploy to
+# public_html/<domain>), route all traffic into the public/ front controller.
+# Application source (app/, config/, .env, storage/, vendor/, …) sits above
+# public/ and is therefore never served directly: any such request is
+# rewritten to public/<path>, which does not exist, and 404s.
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Requests already inside public/ are served as-is (prevents a rewrite loop).
+    RewriteRule ^public/ - [L]
+
+    # Everything else is routed into public/.
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
+
+# Defence in depth: explicitly deny direct access to sensitive files even if
+# mod_rewrite is unavailable.
+<FilesMatch "^\.env">
+    Require all denied
+</FilesMatch>
+<FilesMatch "\.(sql|log|lock|md|json|yml|yaml|dist)$">
+    Require all denied
+</FilesMatch>
+
+Options -Indexes
