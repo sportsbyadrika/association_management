@@ -11,11 +11,6 @@
     RewriteRule ^ index.php [L]
 </IfModule>
 
-# Never allow PHP execution in the uploads directory.
-<IfModule mod_php.c>
-    php_flag engine off
-</IfModule>
-
 # Basic security headers (also set in PHP for servers without these modules).
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
