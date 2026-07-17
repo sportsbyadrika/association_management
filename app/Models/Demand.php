@@ -11,7 +11,7 @@ final class Demand extends Model
     protected string $table = 'demands';
 
     protected array $fillable = [
-        'association_id', 'member_id', 'purpose', 'project_id', 'amount',
+        'association_id', 'member_id', 'demand_purpose_id', 'project_id', 'amount',
         'due_date', 'status', 'remarks', 'created_by',
     ];
 
@@ -35,10 +35,12 @@ final class Demand extends Model
         }
 
         $base = "SELECT d.*, m.name AS member_name, m.member_number, m.mobile, p.name AS project_name,
+                        dp.name AS purpose_name, dp.type AS purpose_type,
                         (SELECT COALESCE(SUM(amount),0) FROM receipts WHERE demand_id = d.id) AS receipts_paid
                  FROM demands d
                  JOIN members m ON m.id = d.member_id
                  LEFT JOIN projects p ON p.id = d.project_id
+                 LEFT JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
                  {$where}
                  ORDER BY d.created_at DESC";
         $count = "SELECT COUNT(*) FROM demands d JOIN members m ON m.id = d.member_id {$where}";
@@ -70,7 +72,10 @@ final class Demand extends Model
     public function forMember(int $memberId): array
     {
         return $this->db->fetchAll(
-            'SELECT * FROM demands WHERE member_id = ? ORDER BY COALESCE(due_date, created_at) ASC, id ASC',
+            'SELECT d.*, dp.name AS purpose_name, dp.type AS purpose_type
+             FROM demands d
+             LEFT JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
+             WHERE d.member_id = ? ORDER BY COALESCE(d.due_date, d.created_at) ASC, d.id ASC',
             [$memberId]
         );
     }

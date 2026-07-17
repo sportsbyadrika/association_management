@@ -1,5 +1,5 @@
 <?php $this->layout('layouts.app');
-/** @var array $details */ /** @var list $members */ /** @var ?string $projectName */
+/** @var array $details */ /** @var list $members */ /** @var ?string $projectName */ /** @var string $purposeName */
 /** @var array $memberAmounts */ /** @var list $invalidIds */ /** @var ?string $error */
 $count = count($members);
 $defaultEach = (float) $details['amount'];
@@ -8,7 +8,7 @@ foreach ($members as $m) {
     $initialTotal += (float) ($memberAmounts[(int) $m['id']] ?? $defaultEach);
 }
 $invalidIds = $invalidIds ?? [];
-$purposeLabel = ['subscription' => 'Subscription', 'project' => 'Project contribution', 'other' => 'Other'][$details['purpose']] ?? $details['purpose'];
+$purposeLabel = $purposeName ?? 'Demand';
 ?>
 
 <div class="mb-6">
@@ -26,8 +26,8 @@ $purposeLabel = ['subscription' => 'Subscription', 'project' => 'Project contrib
 
     <form method="post" action="<?= e(url('/demands/bulk')) ?>" data-amount-sum novalidate>
         <?= csrf_field() ?>
-        <input type="hidden" name="purpose" value="<?= e($details['purpose']) ?>">
-        <?php if ($details['purpose'] === 'project'): ?>
+        <input type="hidden" name="demand_purpose_id" value="<?= e((string) $details['demand_purpose_id']) ?>">
+        <?php if ($details['project_id'] !== null): ?>
             <input type="hidden" name="project_id" value="<?= e((string) $details['project_id']) ?>">
         <?php endif; ?>
         <input type="hidden" name="amount" value="<?= e($details['amount']) ?>">

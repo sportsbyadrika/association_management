@@ -54,8 +54,8 @@
             var emptyEl = container.querySelector('[data-member-empty]');
 
             // Optional "exclude members who already have a demand for this
-            // project" controls (present only on the Raise Demand page).
-            var purposeSel = document.getElementById('purpose');
+            // project" controls (present only on the Raise Demand page). Tied
+            // to the (independent) project selection.
             var projectSel = document.getElementById('project_id');
             var excludeToggle = container.querySelector('[data-exclude-existing]');
             var excludeWrap = document.querySelector('[data-exclude-wrap]');
@@ -63,9 +63,11 @@
             var existingMap = {};
             try { existingMap = JSON.parse(container.getAttribute('data-existing-demands') || '{}'); } catch (e) { existingMap = {}; }
 
+            function projectSelected() {
+                return projectSel && projectSel.value && projectSel.value !== '0';
+            }
             function excludedSet() {
-                if (!excludeToggle || !excludeToggle.checked || !purposeSel || purposeSel.value !== 'project') return null;
-                if (!projectSel || !projectSel.value) return null;
+                if (!excludeToggle || !excludeToggle.checked || !projectSelected()) return null;
                 var list = existingMap[projectSel.value] || [];
                 var set = {};
                 list.forEach(function (id) { set[String(id)] = true; });
@@ -115,10 +117,9 @@
                 });
             }
             if (excludeToggle) excludeToggle.addEventListener('change', applyFilter);
-            if (projectSel) projectSel.addEventListener('change', applyFilter);
-            if (purposeSel) {
-                purposeSel.addEventListener('change', function () {
-                    if (excludeWrap) excludeWrap.style.display = purposeSel.value === 'project' ? 'block' : 'none';
+            if (projectSel) {
+                projectSel.addEventListener('change', function () {
+                    if (excludeWrap) excludeWrap.style.display = projectSelected() ? 'block' : 'none';
                     applyFilter();
                 });
             }

@@ -20,8 +20,23 @@
 </div>
 
 <div class="mt-4 card card-body">
-    <p class="text-sm font-medium text-gray-500">Outstanding member dues (demands − receipts)</p>
-    <p class="mt-1 text-xl font-bold <?= $stats['outstanding'] > 0 ? 'text-amber-600' : 'text-brand-700' ?>">₹ <?= money(max(0, $stats['outstanding'])) ?></p>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <p class="text-sm font-medium text-gray-500">Outstanding member dues (demands − receipts)</p>
+            <p class="mt-1 text-2xl font-bold <?= $stats['outstanding'] > 0 ? 'text-amber-600' : 'text-brand-700' ?>">₹ <?= money(max(0, $stats['outstanding'])) ?></p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:w-96">
+            <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                <p class="text-xs font-medium uppercase tracking-wide text-red-700">Mandatory</p>
+                <p class="mt-1 text-lg font-bold text-red-700">₹ <?= money(max(0, $stats['outstanding_mandatory'])) ?></p>
+            </div>
+            <div class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3">
+                <p class="text-xs font-medium uppercase tracking-wide text-sky-700">Optional</p>
+                <p class="mt-1 text-lg font-bold text-sky-700">₹ <?= money(max(0, $stats['outstanding_optional'])) ?></p>
+            </div>
+        </div>
+    </div>
+    <p class="mt-2 text-xs text-gray-400">Split by demand purpose type — configure under Masters → Demand Purpose.</p>
 </div>
 
 <div class="mt-8 grid gap-6 lg:grid-cols-2">

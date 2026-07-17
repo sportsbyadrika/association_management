@@ -36,5 +36,19 @@ final class Defaults
              VALUES (?, ?, ?, ?, 1)',
             [$associationId, 'General Fund', 'association', 0.00]
         );
+
+        // Default demand purposes with their mandatory/optional type.
+        $purposes = [
+            ['Subscription', 'mandatory'],
+            ['Project Contribution', 'optional'],
+            ['Donation', 'optional'],
+            ['Other', 'optional'],
+        ];
+        foreach ($purposes as [$name, $type]) {
+            $db->run(
+                'INSERT INTO demand_purposes (association_id, name, type, is_active) VALUES (?, ?, ?, 1)',
+                [$associationId, $name, $type]
+            );
+        }
     }
 }

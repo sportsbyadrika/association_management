@@ -1,11 +1,10 @@
 <?php $this->layout('layouts.app');
-/** @var list $members */ /** @var list $projects */ /** @var list $preselected */ /** @var array $existingDemands */
-/** @var string $presetPurpose */ /** @var int $presetProject */
-$presetPurpose = $presetPurpose ?? 'subscription';
+/** @var list $members */ /** @var list $purposes */ /** @var list $projects */ /** @var list $preselected */ /** @var array $existingDemands */ /** @var int $presetProject */
 $presetProject = $presetProject ?? 0;
-$curPurpose = old('purpose', $presetPurpose);
+$presetPurpose = $presetPurpose ?? 0;
+$defaultPurpose = $presetPurpose > 0 ? $presetPurpose : ($purposes[0]['id'] ?? '');
+$curPurpose = old('demand_purpose_id', (string) $defaultPurpose);
 $curProject = old('project_id', (string) $presetProject);
-$selP = static fn ($id) => (string) $curPurpose === $id ? 'selected' : '';
 $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
 ?>
 
@@ -26,17 +25,26 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
             <div class="lg:col-span-2 space-y-5">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Demand details</h2>
                 <div>
-                    <label for="purpose" class="form-label">Purpose *</label>
-                    <select id="purpose" name="purpose" class="form-select" onchange="document.getElementById('projectWrap').style.display=this.value==='project'?'block':'none';document.getElementById('project_id').required=this.value==='project';">
-                        <option value="subscription" <?= $selP('subscription') ?>>Subscription</option>
-                        <option value="project" <?= $selP('project') ?>>Project contribution</option>
-                        <option value="other" <?= $selP('other') ?>>Other</option>
+                    <label for="demand_purpose_id" class="form-label">Purpose *</label>
+                    <select id="demand_purpose_id" name="demand_purpose_id" required class="form-select">
+                        <?php if ($purposes === []): ?>
+                            <option value="">— No purposes defined —</option>
+                        <?php endif; ?>
+                        <?php foreach ($purposes as $pp): ?>
+                            <option value="<?= (int) $pp['id'] ?>" <?= (string) $curPurpose === (string) $pp['id'] ? 'selected' : '' ?>>
+                                <?= e($pp['name']) ?> (<?= e($pp['type']) ?>)
+                            </option>
+                        <?php endforeach; ?>
                     </select>
+                    <?php if ($m = error_for('demand_purpose_id')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
+                    <?php if ($purposes === []): ?>
+                        <p class="mt-1 text-xs text-amber-600">Add purposes under Masters → Demand Purpose first.</p>
+                    <?php endif; ?>
                 </div>
-                <div id="projectWrap" style="display:<?= (string) $curPurpose === 'project' ? 'block' : 'none' ?>">
-                    <label for="project_id" class="form-label">Project</label>
+                <div>
+                    <label for="project_id" class="form-label">Link to project (optional)</label>
                     <select id="project_id" name="project_id" class="form-select">
-                        <option value="">— Select —</option>
+                        <option value="">— None —</option>
                         <?php foreach ($projects as $p): ?>
                             <option value="<?= (int) $p['id'] ?>" <?= (string) $curProject === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
                         <?php endforeach; ?>
@@ -66,7 +74,7 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
                     <span class="text-sm text-gray-500"><span data-selected-count>0</span> selected</span>
                 </div>
 
-                <div data-exclude-wrap class="mb-3 rounded-lg bg-amber-50 px-3 py-2" style="display:<?= (string) $curPurpose === 'project' ? 'block' : 'none' ?>">
+                <div data-exclude-wrap class="mb-3 rounded-lg bg-amber-50 px-3 py-2" style="display:<?= (string) $curProject !== '' && (string) $curProject !== '0' ? 'block' : 'none' ?>">
                     <label class="flex items-center gap-2 text-sm text-amber-800">
                         <input type="checkbox" data-exclude-existing class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
                         Exclude members who already have a demand for the selected project
