@@ -22,16 +22,24 @@ $sortLink = static function (string $col) use ($search, $sort, $dir, $typeQs): s
 
 <div class="card">
     <div class="border-b border-gray-100 p-4">
-        <form method="get" action="<?= e(url('/members')) ?>" class="flex flex-wrap gap-2">
-            <input type="text" name="q" value="<?= e($search) ?>" placeholder="Search member no, name, mobile or email…" class="form-input max-w-sm">
-            <select name="type" class="form-select w-auto">
-                <option value="">All types</option>
-                <?php foreach ($memberTypes as $mt): ?>
-                    <option value="<?= (int) $mt['id'] ?>" <?= (int) $mt['id'] === (int) $typeId ? 'selected' : '' ?>><?= e($mt['name']) ?></option>
-                <?php endforeach; ?>
-            </select>
-            <button type="submit" class="btn-secondary">Search</button>
-            <?php if ($search !== '' || $typeId): ?><a href="<?= e(url('/members')) ?>" class="btn-secondary">Clear</a><?php endif; ?>
+        <form method="get" action="<?= e(url('/members')) ?>" class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-end">
+            <div>
+                <label for="q" class="form-label">Search</label>
+                <input type="text" id="q" name="q" value="<?= e($search) ?>" placeholder="Member no, name, mobile or email…" class="form-input w-full">
+            </div>
+            <div>
+                <label for="type" class="form-label">Member type</label>
+                <select id="type" name="type" class="form-select w-full">
+                    <option value="">All types</option>
+                    <?php foreach ($memberTypes as $mt): ?>
+                        <option value="<?= (int) $mt['id'] ?>" <?= (int) $mt['id'] === (int) $typeId ? 'selected' : '' ?>><?= e($mt['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="btn-secondary">Search</button>
+                <?php if ($search !== '' || $typeId): ?><a href="<?= e(url('/members')) ?>" class="btn-secondary">Clear</a><?php endif; ?>
+            </div>
         </form>
     </div>
     <div class="overflow-x-auto">
