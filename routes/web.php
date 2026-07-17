@@ -121,6 +121,7 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->get('/projects/create', [ProjectController::class, 'create']);
     $router->post('/projects', [ProjectController::class, 'store']);
     $router->get('/projects/{id}', [ProjectController::class, 'show']);
+    $router->get('/projects/{id}/ledger', [ProjectController::class, 'ledger']);
     $router->get('/projects/{id}/edit', [ProjectController::class, 'edit']);
     $router->post('/projects/{id}', [ProjectController::class, 'update']);
     $router->post('/projects/{id}/milestones', [ProjectController::class, 'storeMilestone']);

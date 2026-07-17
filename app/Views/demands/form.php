@@ -1,6 +1,11 @@
 <?php $this->layout('layouts.app');
 /** @var list $members */ /** @var list $projects */ /** @var list $preselected */ /** @var array $existingDemands */
-$selP = static fn ($id) => (string) old('purpose', 'subscription') === $id ? 'selected' : '';
+/** @var string $presetPurpose */ /** @var int $presetProject */
+$presetPurpose = $presetPurpose ?? 'subscription';
+$presetProject = $presetProject ?? 0;
+$curPurpose = old('purpose', $presetPurpose);
+$curProject = old('project_id', (string) $presetProject);
+$selP = static fn ($id) => (string) $curPurpose === $id ? 'selected' : '';
 $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
 ?>
 
@@ -28,12 +33,12 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
                         <option value="other" <?= $selP('other') ?>>Other</option>
                     </select>
                 </div>
-                <div id="projectWrap" style="display:<?= old('purpose') === 'project' ? 'block' : 'none' ?>">
+                <div id="projectWrap" style="display:<?= (string) $curPurpose === 'project' ? 'block' : 'none' ?>">
                     <label for="project_id" class="form-label">Project</label>
                     <select id="project_id" name="project_id" class="form-select">
                         <option value="">— Select —</option>
                         <?php foreach ($projects as $p): ?>
-                            <option value="<?= (int) $p['id'] ?>" <?= (string) old('project_id') === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
+                            <option value="<?= (int) $p['id'] ?>" <?= (string) $curProject === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                     <?php if ($m = error_for('project_id')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
@@ -61,7 +66,7 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
                     <span class="text-sm text-gray-500"><span data-selected-count>0</span> selected</span>
                 </div>
 
-                <div data-exclude-wrap class="mb-3 rounded-lg bg-amber-50 px-3 py-2" style="display:<?= old('purpose') === 'project' ? 'block' : 'none' ?>">
+                <div data-exclude-wrap class="mb-3 rounded-lg bg-amber-50 px-3 py-2" style="display:<?= (string) $curPurpose === 'project' ? 'block' : 'none' ?>">
                     <label class="flex items-center gap-2 text-sm text-amber-800">
                         <input type="checkbox" data-exclude-existing class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
                         Exclude members who already have a demand for the selected project

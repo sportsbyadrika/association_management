@@ -65,4 +65,27 @@ final class Project extends Model
             [$associationId]
         );
     }
+
+    /**
+     * Demands raised for a project with each member's payment status and the
+     * last received date.
+     * @return list<array<string,mixed>>
+     */
+    public function demandLedger(int $projectId, int $associationId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT d.id, d.amount, d.status, d.due_date,
+                    m.member_number, m.name,
+                    COALESCE(rr.paid, 0) AS paid, rr.last_received
+             FROM demands d
+             JOIN members m ON m.id = d.member_id
+             LEFT JOIN (
+                 SELECT demand_id, SUM(amount) AS paid, MAX(received_on) AS last_received
+                 FROM receipts WHERE association_id = ? GROUP BY demand_id
+             ) rr ON rr.demand_id = d.id
+             WHERE d.association_id = ? AND d.project_id = ? AND d.status <> 'cancelled'
+             ORDER BY m.name ASC",
+            [$associationId, $associationId, $projectId]
+        );
+    }
 }
