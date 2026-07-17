@@ -33,7 +33,7 @@ final class Member extends Model
      * Paginated, searchable, sortable listing scoped to an association.
      * @return array{data:list<array<string,mixed>>,total:int,page:int,perPage:int,pages:int}
      */
-    public function paginateForAssociation(int $associationId, string $search = '', string $sort = 'name', string $dir = 'asc', int $page = 1, int $perPage = 15): array
+    public function paginateForAssociation(int $associationId, string $search = '', string $sort = 'name', string $dir = 'asc', int $page = 1, int $perPage = 15, ?int $memberTypeId = null): array
     {
         $allowedSort = ['name', 'created_at', 'age', 'mobile'];
         $sort = in_array($sort, $allowedSort, true) ? $sort : 'name';
@@ -45,6 +45,10 @@ final class Member extends Model
             $where .= ' AND (m.member_number LIKE ? OR m.name LIKE ? OR m.mobile LIKE ? OR m.email LIKE ?)';
             $like = '%' . $search . '%';
             array_push($bindings, $like, $like, $like, $like);
+        }
+        if ($memberTypeId !== null) {
+            $where .= ' AND m.member_type_id = ?';
+            $bindings[] = $memberTypeId;
         }
 
         $base = "SELECT m.*, mt.name AS member_type_name

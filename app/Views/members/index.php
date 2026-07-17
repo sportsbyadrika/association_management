@@ -1,7 +1,9 @@
 <?php $this->layout('layouts.app'); /** @var list $members */ /** @var array $paginator */
-$sortLink = static function (string $col) use ($search, $sort, $dir): string {
+/** @var list $memberTypes */ /** @var int|null $typeId */
+$typeQs = $typeId ? '&type=' . $typeId : '';
+$sortLink = static function (string $col) use ($search, $sort, $dir, $typeQs): string {
     $newDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
-    return url('/members?q=' . urlencode($search) . '&sort=' . $col . '&dir=' . $newDir);
+    return url('/members?q=' . urlencode($search) . $typeQs . '&sort=' . $col . '&dir=' . $newDir);
 };
 ?>
 
@@ -20,10 +22,16 @@ $sortLink = static function (string $col) use ($search, $sort, $dir): string {
 
 <div class="card">
     <div class="border-b border-gray-100 p-4">
-        <form method="get" action="<?= e(url('/members')) ?>" class="flex gap-2">
+        <form method="get" action="<?= e(url('/members')) ?>" class="flex flex-wrap gap-2">
             <input type="text" name="q" value="<?= e($search) ?>" placeholder="Search member no, name, mobile or email…" class="form-input max-w-sm">
+            <select name="type" class="form-select w-auto">
+                <option value="">All types</option>
+                <?php foreach ($memberTypes as $mt): ?>
+                    <option value="<?= (int) $mt['id'] ?>" <?= (int) $mt['id'] === (int) $typeId ? 'selected' : '' ?>><?= e($mt['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
             <button type="submit" class="btn-secondary">Search</button>
-            <?php if ($search !== ''): ?><a href="<?= e(url('/members')) ?>" class="btn-secondary">Clear</a><?php endif; ?>
+            <?php if ($search !== '' || $typeId): ?><a href="<?= e(url('/members')) ?>" class="btn-secondary">Clear</a><?php endif; ?>
         </form>
     </div>
     <div class="overflow-x-auto">
@@ -79,7 +87,7 @@ $sortLink = static function (string $col) use ($search, $sort, $dir): string {
         </table>
     </div>
     <div class="p-4">
-        <?php $baseUrl = url('/members?q=' . urlencode($search) . '&sort=' . $sort . '&dir=' . $dir);
+        <?php $baseUrl = url('/members?q=' . urlencode($search) . $typeQs . '&sort=' . $sort . '&dir=' . $dir);
         include dirname(__DIR__) . '/partials/pagination.php'; ?>
     </div>
 </div>
