@@ -85,4 +85,40 @@ final class Member extends Model
             [$associationId]
         );
     }
+
+    /**
+     * Active members with the fields needed for the bulk-select table.
+     * @return list<array<string,mixed>>
+     */
+    public function selectableForAssociation(int $associationId): array
+    {
+        return $this->db->fetchAll(
+            'SELECT id, member_number, name, mobile
+             FROM members WHERE association_id = ? AND is_active = 1
+             ORDER BY name ASC',
+            [$associationId]
+        );
+    }
+
+    /**
+     * Fetch a set of members by id, scoped to the association (tenant-safe).
+     * @param list<int> $ids
+     * @return list<array<string,mixed>>
+     */
+    public function findManyForAssociation(array $ids, int $associationId): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn ($v) => $v > 0)));
+        if ($ids === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = array_merge($ids, [$associationId]);
+        return $this->db->fetchAll(
+            "SELECT id, member_number, name, mobile
+             FROM members
+             WHERE id IN ({$placeholders}) AND association_id = ? AND is_active = 1
+             ORDER BY name ASC",
+            $params
+        );
+    }
 }

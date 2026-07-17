@@ -95,10 +95,11 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->post('/members/{id}/delete', [MemberController::class, 'destroy']);
     $router->get('/members/{id}/ledger', [MemberController::class, 'ledger']);
 
-    // Demands
+    // Demands (bulk raise: details + member selection -> confirm -> create)
     $router->get('/demands', [DemandController::class, 'index']);
     $router->get('/demands/create', [DemandController::class, 'create']);
-    $router->post('/demands', [DemandController::class, 'store']);
+    $router->post('/demands/preview', [DemandController::class, 'preview']);
+    $router->post('/demands/bulk', [DemandController::class, 'bulkStore']);
     $router->post('/demands/{id}/delete', [DemandController::class, 'destroy']);
 
     // Receipts

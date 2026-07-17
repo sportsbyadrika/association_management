@@ -11,6 +11,7 @@ use App\Core\Response;
 use App\Core\Session;
 use App\Core\Validator;
 use App\Models\Demand;
+use App\Models\FinancialYear;
 use App\Models\Member;
 use App\Models\Project;
 
@@ -22,7 +23,7 @@ final class DemandController extends Controller
         $page = (int) $request->input('page', 1);
         $search = trim((string) $request->input('q', ''));
 
-        $fyModel = new \App\Models\FinancialYear();
+        $fyModel = new FinancialYear();
         $financialYears = $fyModel->allForAssociationOrdered($assocId);
 
         // Resolve the selected financial year. Default to the current one.
@@ -62,61 +63,84 @@ final class DemandController extends Controller
         Session::clearFormState();
     }
 
+    /**
+     * Raise Demand — two-column page: details on the left, a searchable
+     * member-selection table on the right.
+     */
     public function create(Request $request): void
     {
         $assocId = Auth::associationId();
+        $preselected = [];
+        $pre = (int) $request->input('member_id', 0);
+        if ($pre > 0) {
+            $preselected[] = $pre;
+        }
+
         $this->view('demands.form', [
-            'title'      => 'Raise Demand',
-            'members'    => (new Member())->options($assocId),
-            'projects'   => (new Project())->options($assocId),
-            'selectedMember' => (int) $request->input('member_id', 0),
+            'title'       => 'Raise Demand',
+            'members'     => (new Member())->selectableForAssociation($assocId),
+            'projects'    => (new Project())->options($assocId),
+            'preselected' => $preselected,
         ]);
         Session::clearFormState();
     }
 
-    public function store(Request $request): void
+    /**
+     * Step 2 — confirmation: show the demand details + the selected members
+     * before anything is written.
+     */
+    public function preview(Request $request): void
     {
         $assocId = Auth::associationId();
-        $input = [
-            'member_id' => (int) $request->input('member_id', 0),
-            'purpose'   => (string) $request->input('purpose', 'subscription'),
-            'project_id' => $request->input('project_id') ?: null,
-            'amount'    => (string) $request->input('amount', ''),
-            'due_date'  => (string) $request->input('due_date', ''),
-            'remarks'   => (string) $request->input('remarks', ''),
-        ];
-        $validator = Validator::make($input, [
-            'member_id' => 'required|integer',
-            'purpose'   => 'required|in:subscription,project,other',
-            'amount'    => 'required|decimal|min_val:0.01',
-            'due_date'  => 'date',
-            'remarks'   => 'max:500',
+        $details = $this->validateDetails($request);
+        $members = $this->resolveMembers($request, $assocId);
+
+        $projectName = null;
+        if ($details['purpose'] === 'project' && $details['project_id'] !== null) {
+            $project = (new Project())->findForAssociation((int) $details['project_id'], $assocId);
+            $projectName = $project['name'] ?? null;
+        }
+
+        $this->view('demands.confirm', [
+            'title'       => 'Confirm Demands',
+            'details'     => $details,
+            'members'     => $members,
+            'projectName' => $projectName,
         ]);
-        if ($validator->fails()) {
-            $this->withErrors($validator->errors(), $input);
-        }
+    }
 
-        // Tenant isolation: the member must belong to this association.
-        if ((new Member())->findForAssociation($input['member_id'], $assocId) === null) {
-            $this->withErrors(['member_id' => 'Please select a valid member.'], $input);
-        }
-        if ($input['project_id'] !== null && (new Project())->findForAssociation((int) $input['project_id'], $assocId) === null) {
-            $this->withErrors(['project_id' => 'Please select a valid project.'], $input);
-        }
+    /**
+     * Step 3 — create one demand per selected member, in a transaction.
+     */
+    public function bulkStore(Request $request): void
+    {
+        $assocId = Auth::associationId();
+        $details = $this->validateDetails($request);
+        $members = $this->resolveMembers($request, $assocId);
 
-        (new Demand())->create([
-            'association_id' => $assocId,
-            'member_id'  => $input['member_id'],
-            'purpose'    => $input['purpose'],
-            'project_id' => $input['purpose'] === 'project' ? $input['project_id'] : null,
-            'amount'     => $input['amount'],
-            'due_date'   => $input['due_date'] ?: null,
-            'status'     => 'pending',
-            'remarks'    => $input['remarks'] ?: null,
-            'created_by' => Auth::id(),
-        ]);
+        $demand = new Demand();
+        $count = $demand->db()->transaction(function () use ($demand, $members, $details, $assocId): int {
+            $n = 0;
+            foreach ($members as $m) {
+                $demand->create([
+                    'association_id' => $assocId,
+                    'member_id'  => (int) $m['id'],
+                    'purpose'    => $details['purpose'],
+                    'project_id' => $details['purpose'] === 'project' ? $details['project_id'] : null,
+                    'amount'     => $details['amount'],
+                    'due_date'   => $details['due_date'] ?: null,
+                    'status'     => 'pending',
+                    'remarks'    => $details['remarks'] ?: null,
+                    'created_by' => Auth::id(),
+                ]);
+                $n++;
+            }
+            return $n;
+        });
 
-        $this->flash('success', 'Demand raised.');
+        $each = number_format((float) $details['amount'], 2);
+        $total = number_format((float) $details['amount'] * $count, 2);
+        $this->flash('success', "{$count} demand(s) raised — ₹{$each} each (total ₹{$total}).");
         $this->redirect('/demands');
     }
 
@@ -131,5 +155,56 @@ final class DemandController extends Controller
         (new Demand())->update((int) $demand['id'], ['status' => 'cancelled']);
         $this->flash('success', 'Demand cancelled.');
         $this->redirect('/demands');
+    }
+
+    // ---- Shared validation ---------------------------------------------
+
+    /** @return array{purpose:string,project_id:?string,amount:string,due_date:string,remarks:string} */
+    private function validateDetails(Request $request): array
+    {
+        $assocId = Auth::associationId();
+        $input = [
+            'purpose'    => (string) $request->input('purpose', 'subscription'),
+            'project_id' => $request->input('project_id') ?: null,
+            'amount'     => (string) $request->input('amount', ''),
+            'due_date'   => (string) $request->input('due_date', ''),
+            'remarks'    => (string) $request->input('remarks', ''),
+        ];
+        $validator = Validator::make($input, [
+            'purpose'  => 'required|in:subscription,project,other',
+            'amount'   => 'required|decimal|min_val:0.01',
+            'due_date' => 'date',
+            'remarks'  => 'max:500',
+        ]);
+        if ($validator->fails()) {
+            $this->withErrors($validator->errors(), $input);
+        }
+
+        if ($input['purpose'] === 'project') {
+            if ($input['project_id'] === null || (new Project())->findForAssociation((int) $input['project_id'], $assocId) === null) {
+                $this->withErrors(['project_id' => 'Please select a valid project for a project demand.'], $input);
+            }
+        } else {
+            $input['project_id'] = null;
+        }
+        return $input;
+    }
+
+    /**
+     * Resolve + tenant-check the selected member ids.
+     * @return list<array<string,mixed>>
+     */
+    private function resolveMembers(Request $request, int $assocId): array
+    {
+        $ids = $request->input('member_ids', []);
+        if (!is_array($ids)) {
+            $ids = [];
+        }
+        $members = (new Member())->findManyForAssociation($ids, $assocId);
+        if ($members === []) {
+            Session::flash('error', 'Please select at least one member.');
+            $this->redirect('/demands/create');
+        }
+        return $members;
     }
 }
