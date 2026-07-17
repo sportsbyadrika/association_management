@@ -22,7 +22,7 @@ if (!isset($GLOBALS['__association'])) {
     <meta name="robots" content="noindex">
     <title><?= e(($title ?? 'Dashboard') . ' · ' . ($appName ?? 'Habitract')) ?></title>
     <link rel="stylesheet" href="<?= e(asset('/assets/css/app.css')) ?>">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏘️</text></svg>">
+    <?php include dirname(__DIR__) . '/partials/head_icons.php'; ?>
 </head>
 <body class="flex min-h-full flex-col">
     <?php include dirname(__DIR__) . '/partials/nav.php'; ?>

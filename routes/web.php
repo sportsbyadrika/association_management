@@ -82,10 +82,12 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     // Members
     $router->get('/members', [MemberController::class, 'index']);
     $router->get('/members/create', [MemberController::class, 'create']);
-    // Bulk upload (association_admin only — enforced in the controller).
+    // Bulk upload wizard (association_admin only — enforced in the controller).
     // Registered before /members/{id} so "bulk" is not treated as an id.
     $router->get('/members/bulk', [MemberController::class, 'bulkForm']);
-    $router->post('/members/bulk', [MemberController::class, 'bulkUpload']);
+    $router->post('/members/bulk/parse', [MemberController::class, 'bulkParse']);
+    $router->get('/members/bulk/preview', [MemberController::class, 'bulkPreview']);
+    $router->post('/members/bulk/import', [MemberController::class, 'bulkImport']);
     $router->post('/members', [MemberController::class, 'store']);
     $router->get('/members/{id}', [MemberController::class, 'show']);
     $router->get('/members/{id}/edit', [MemberController::class, 'edit']);
