@@ -90,13 +90,15 @@ final class ProjectController extends Controller
         $spent = $model->spent((int) $project['id']);
         $breakdown = $this->demandBreakdown((int) $project['id'], $assocId);
 
-        $columns = ['Member No.', 'Name', 'Demand Amount', 'Status', 'Received On'];
+        $columns = ['Member No.', 'Name', 'Demand', 'Collected', 'Balance', 'Status', 'Received On'];
         $rows = [];
         foreach ($breakdown['all'] as $e) {
             $rows[] = [
                 $e['member_number'] ?: '-',
                 $e['name'],
                 number_format($e['amount'], 2),
+                number_format($e['collected'], 2),
+                number_format($e['balance'], 2),
                 $e['status'],
                 $e['received_on'] ? format_date($e['received_on']) : '-',
             ];
@@ -139,20 +141,24 @@ final class ProjectController extends Controller
 
         foreach ($rows as $r) {
             $amount = (float) $r['amount'];
-            $paid = (float) $r['paid'];
-            $fully = $r['status'] === 'paid' || $paid >= $amount;
+            $collected = (float) $r['paid'];
+            $settled = $r['status'] === 'paid' || $collected >= $amount;
+            $balance = $settled ? 0.0 : round($amount - $collected, 2);
+            $hasCollection = $collected > 0 || $settled;
+
             $entry = [
                 'member_number' => $r['member_number'],
                 'name'          => $r['name'],
                 'amount'        => $amount,
-                'paid'          => $paid,
-                'status'        => $fully ? 'Received' : ($paid > 0 ? 'Partial' : 'Pending'),
+                'collected'     => $collected,
+                'balance'       => $balance,
+                'status'        => $settled ? 'Received' : ($collected > 0 ? 'Partial' : 'Pending'),
                 'received_on'   => $r['last_received'],
             ];
             $totalDemanded += $amount;
-            $totalReceived += $paid;
+            $totalReceived += $collected;
             $all[] = $entry;
-            if ($fully) {
+            if ($hasCollection) {
                 $received[] = $entry;
             } else {
                 $pending[] = $entry;

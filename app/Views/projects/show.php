@@ -8,18 +8,24 @@ $renderMemberList = static function (array $list): void {
     ?>
     <div class="overflow-x-auto">
         <table class="table">
-            <thead><tr><th>Member No.</th><th>Name</th><th class="text-right">Demand Amount</th><th>Received On</th></tr></thead>
+            <thead><tr>
+                <th>Member No.</th><th>Name</th>
+                <th class="text-right">Demand</th><th class="text-right">Collected</th><th class="text-right">Balance</th>
+                <th>Received On</th>
+            </tr></thead>
             <tbody>
             <?php foreach ($list as $row): ?>
                 <tr>
                     <td class="font-medium text-gray-700"><?= e($row['member_number'] ?: '—') ?></td>
                     <td><?= e($row['name']) ?></td>
                     <td class="text-right">₹ <?= money($row['amount']) ?></td>
+                    <td class="text-right text-brand-700">₹ <?= money($row['collected']) ?></td>
+                    <td class="text-right <?= $row['balance'] > 0 ? 'text-amber-600' : 'text-gray-400' ?>">₹ <?= money($row['balance']) ?></td>
                     <td><?= $row['received_on'] ? e(format_date($row['received_on'])) : '—' ?></td>
                 </tr>
             <?php endforeach; ?>
             <?php if ($list === []): ?>
-                <tr><td colspan="4" class="text-center text-gray-400 py-6">No members.</td></tr>
+                <tr><td colspan="6" class="text-center text-gray-400 py-6">No members.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>
