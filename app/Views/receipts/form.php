@@ -5,6 +5,7 @@ $demand = $demand ?? null;
 $demandId = $demandId ?? 0;
 $prefillAmount = $prefillAmount ?? '';
 $returnLedger = $returnLedger ?? 0;
+$selectedIncomeHead = $selectedIncomeHead ?? 0;
 $cancelUrl = $returnLedger > 0 ? url('/members/' . $returnLedger . '/ledger') : url('/receipts');
 $sel = static fn (string $field, $id, $default = 0) => (int) (old($field) !== '' ? old($field) : $default) === (int) $id ? 'selected' : '';
 $selMode = static fn ($m) => (string) old('mode', 'cash') === $m ? 'selected' : '';
@@ -46,7 +47,7 @@ $selMode = static fn ($m) => (string) old('mode', 'cash') === $m ? 'selected' : 
                 <select id="income_head_id" name="income_head_id" class="form-select">
                     <option value="">— Select —</option>
                     <?php foreach ($incomeHeads as $h): ?>
-                        <option value="<?= (int) $h['id'] ?>" <?= $sel('income_head_id', $h['id']) ?>><?= e($h['name']) ?></option>
+                        <option value="<?= (int) $h['id'] ?>" <?= $sel('income_head_id', $h['id'], $selectedIncomeHead) ?>><?= e($h['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
                 <?php if ($msg = error_for('income_head_id')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>

@@ -38,21 +38,54 @@ final class MemberLedger
             }
             $amount = (float) $d['amount'];
             $paid = (float) ($paidByDemand[(int) $d['id']] ?? 0.0);
-            $remaining = max(0.0, round($amount - $paid, 2));
-            $status = $remaining <= 0 ? 'paid' : ($paid > 0 ? 'partial' : 'pending');
 
+            // A demand can be marked paid manually (no receipt) as well as by
+            // receipts covering it.
+            if ($d['status'] === 'paid' || round($amount - $paid, 2) <= 0) {
+                $status = 'paid';
+                $remaining = 0.0;
+            } elseif ($paid > 0) {
+                $status = 'partial';
+                $remaining = round($amount - $paid, 2);
+            } else {
+                $status = 'pending';
+                $remaining = $amount;
+            }
+
+            // A demand shown as paid but not covered by receipts was marked
+            // paid manually — it can be reopened.
+            $settle = round($amount - $paid, 2);
+            $manualPaid = $status === 'paid' && $settle > 0;
+
+            $demandDate = $d['due_date'] ?: substr((string) $d['created_at'], 0, 10);
             $entries[] = [
-                'date'        => $d['due_date'] ?: substr((string) $d['created_at'], 0, 10),
+                'date'        => $demandDate,
                 'type'        => 'Demand',
                 'kind'        => 'demand',
                 'demand_id'   => (int) $d['id'],
                 'status'      => $status,
                 'remaining'   => $remaining,
+                'reopenable'  => $manualPaid,
                 'description' => ucfirst((string) $d['purpose']) . ($d['remarks'] ? ' — ' . $d['remarks'] : ''),
                 'debit'       => $amount,
                 'credit'      => 0.0,
-                'sort'        => ($d['due_date'] ?: substr((string) $d['created_at'], 0, 10)) . '-0',
+                'sort'        => $demandDate . '-0',
             ];
+
+            // Manually marked paid without a receipt covering the balance:
+            // post a transparent non-cash settlement so the ledger nets out.
+            if ($d['status'] === 'paid' && $settle > 0) {
+                $when = substr((string) ($d['updated_at'] ?? $demandDate), 0, 10) ?: $demandDate;
+                $entries[] = [
+                    'date'        => $when,
+                    'type'        => 'Adjustment',
+                    'kind'        => 'adjustment',
+                    'description' => 'Marked paid (no receipt)',
+                    'debit'       => 0.0,
+                    'credit'      => $settle,
+                    'sort'        => $when . '-2',
+                ];
+            }
         }
         foreach ($receipts as $r) {
             $entries[] = [
@@ -71,19 +104,25 @@ final class MemberLedger
         $balance = 0.0;
         $totalDemand = 0.0;
         $totalPaid = 0.0;
+        $totalAdjusted = 0.0;
         foreach ($entries as &$e) {
             $balance += $e['debit'] - $e['credit'];
             $totalDemand += $e['debit'];
-            $totalPaid += $e['credit'];
+            if ($e['kind'] === 'receipt') {
+                $totalPaid += $e['credit'];
+            } elseif ($e['kind'] === 'adjustment') {
+                $totalAdjusted += $e['credit'];
+            }
             $e['balance'] = $balance;
         }
         unset($e);
 
         return [
-            'rows'         => $entries,
-            'total_demand' => $totalDemand,
-            'total_paid'   => $totalPaid,
-            'balance'      => $balance,
+            'rows'          => $entries,
+            'total_demand'  => $totalDemand,
+            'total_paid'    => $totalPaid,
+            'total_adjusted' => $totalAdjusted,
+            'balance'       => $balance,
         ];
     }
 }

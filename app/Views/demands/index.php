@@ -66,6 +66,19 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
                         <span class="badge <?= $badge ?> capitalize"><?= e($d['status']) ?></span>
                     </td>
                     <td class="text-right">
+                        <?php if (in_array($d['status'], ['pending', 'partial'], true)): ?>
+                            <form method="post" action="<?= e(url('/demands/' . $d['id'] . '/mark-paid')) ?>" class="inline" data-confirm="Mark this demand as paid without recording a receipt?">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="text-brand-700 hover:underline">Mark paid</button>
+                            </form>
+                            <span class="text-gray-300">·</span>
+                        <?php elseif ($d['status'] === 'paid' && (float) ($d['receipts_paid'] ?? 0) < (float) $d['amount']): ?>
+                            <form method="post" action="<?= e(url('/demands/' . $d['id'] . '/reopen')) ?>" class="inline" data-confirm="Reopen this demand? It was marked paid without a receipt.">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="text-gray-500 hover:underline">Reopen</button>
+                            </form>
+                            <span class="text-gray-300">·</span>
+                        <?php endif; ?>
                         <?php if ($d['status'] !== 'cancelled'): ?>
                             <form method="post" action="<?= e(url('/demands/' . $d['id'] . '/delete')) ?>" class="inline" data-confirm="Cancel this demand?">
                                 <?= csrf_field() ?>
