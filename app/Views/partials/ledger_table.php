@@ -65,6 +65,11 @@ $typeBadge = static fn (string $t): string => [
                                     <?= csrf_field() ?>
                                     <button type="submit" class="text-sm text-gray-500 hover:underline">Mark paid</button>
                                 </form>
+                            <?php elseif ($canRecord && ($row['reopenable'] ?? false)): ?>
+                                <form method="post" action="<?= e(url('/demands/' . $row['demand_id'] . '/reopen')) ?>" class="inline" data-confirm="Reopen this demand? It was marked paid without a receipt.">
+                                    <?= csrf_field() ?>
+                                    <button type="submit" class="ml-2 text-sm text-gray-500 hover:underline">Reopen</button>
+                                </form>
                             <?php endif; ?>
                         <?php else: ?>
                             <span class="text-gray-300">—</span>

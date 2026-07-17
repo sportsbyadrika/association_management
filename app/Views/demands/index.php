@@ -72,6 +72,12 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
                                 <button type="submit" class="text-brand-700 hover:underline">Mark paid</button>
                             </form>
                             <span class="text-gray-300">·</span>
+                        <?php elseif ($d['status'] === 'paid' && (float) ($d['receipts_paid'] ?? 0) < (float) $d['amount']): ?>
+                            <form method="post" action="<?= e(url('/demands/' . $d['id'] . '/reopen')) ?>" class="inline" data-confirm="Reopen this demand? It was marked paid without a receipt.">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="text-gray-500 hover:underline">Reopen</button>
+                            </form>
+                            <span class="text-gray-300">·</span>
                         <?php endif; ?>
                         <?php if ($d['status'] !== 'cancelled'): ?>
                             <form method="post" action="<?= e(url('/demands/' . $d['id'] . '/delete')) ?>" class="inline" data-confirm="Cancel this demand?">

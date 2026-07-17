@@ -34,7 +34,8 @@ final class Demand extends Model
             array_push($params, $fyStart, $fyEnd);
         }
 
-        $base = "SELECT d.*, m.name AS member_name, m.member_number, m.mobile, p.name AS project_name
+        $base = "SELECT d.*, m.name AS member_name, m.member_number, m.mobile, p.name AS project_name,
+                        (SELECT COALESCE(SUM(amount),0) FROM receipts WHERE demand_id = d.id) AS receipts_paid
                  FROM demands d
                  JOIN members m ON m.id = d.member_id
                  LEFT JOIN projects p ON p.id = d.project_id

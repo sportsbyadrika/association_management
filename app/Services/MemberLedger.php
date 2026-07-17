@@ -52,6 +52,11 @@ final class MemberLedger
                 $remaining = $amount;
             }
 
+            // A demand shown as paid but not covered by receipts was marked
+            // paid manually — it can be reopened.
+            $settle = round($amount - $paid, 2);
+            $manualPaid = $status === 'paid' && $settle > 0;
+
             $demandDate = $d['due_date'] ?: substr((string) $d['created_at'], 0, 10);
             $entries[] = [
                 'date'        => $demandDate,
@@ -60,6 +65,7 @@ final class MemberLedger
                 'demand_id'   => (int) $d['id'],
                 'status'      => $status,
                 'remaining'   => $remaining,
+                'reopenable'  => $manualPaid,
                 'description' => ucfirst((string) $d['purpose']) . ($d['remarks'] ? ' — ' . $d['remarks'] : ''),
                 'debit'       => $amount,
                 'credit'      => 0.0,
@@ -68,7 +74,6 @@ final class MemberLedger
 
             // Manually marked paid without a receipt covering the balance:
             // post a transparent non-cash settlement so the ledger nets out.
-            $settle = round($amount - $paid, 2);
             if ($d['status'] === 'paid' && $settle > 0) {
                 $when = substr((string) ($d['updated_at'] ?? $demandDate), 0, 10) ?: $demandDate;
                 $entries[] = [

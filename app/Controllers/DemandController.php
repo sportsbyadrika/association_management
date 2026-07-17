@@ -14,6 +14,7 @@ use App\Models\Demand;
 use App\Models\FinancialYear;
 use App\Models\Member;
 use App\Models\Project;
+use App\Models\Receipt;
 
 final class DemandController extends Controller
 {
@@ -200,6 +201,34 @@ final class DemandController extends Controller
             (new Demand())->update((int) $demand['id'], ['status' => 'paid']);
             $this->flash('success', 'Demand marked as paid.');
         }
+        $this->back('/demands');
+    }
+
+    /**
+     * Reopen a demand that was marked paid by mistake. Its status is
+     * recomputed from actual receipts (pending / partial). Demands genuinely
+     * covered by receipts cannot be reopened here — remove the receipt instead.
+     */
+    public function reopen(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $demandModel = new Demand();
+        $demand = $demandModel->findForAssociation((int) $params['id'], $assocId);
+        if ($demand === null) {
+            Response::notFound();
+        }
+        if ($demand['status'] !== 'paid') {
+            $this->flash('error', 'Only a paid demand can be reopened.');
+            $this->back('/demands');
+        }
+        $paid = (new Receipt())->totalForDemand((int) $demand['id']);
+        if ($paid >= (float) $demand['amount']) {
+            $this->flash('warning', 'This demand is fully covered by receipts — delete the receipt(s) to reopen it.');
+            $this->back('/demands');
+        }
+        // Manually marked paid: recompute from receipts (partial or pending).
+        $demandModel->syncStatus((int) $demand['id']);
+        $this->flash('success', 'Demand reopened.');
         $this->back('/demands');
     }
 
