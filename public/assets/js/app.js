@@ -53,6 +53,25 @@
             var countEl = container.querySelector('[data-selected-count]');
             var emptyEl = container.querySelector('[data-member-empty]');
 
+            // Optional "exclude members who already have a demand for this
+            // project" controls (present only on the Raise Demand page).
+            var purposeSel = document.getElementById('purpose');
+            var projectSel = document.getElementById('project_id');
+            var excludeToggle = container.querySelector('[data-exclude-existing]');
+            var excludeWrap = document.querySelector('[data-exclude-wrap]');
+            var excludedCountEl = container.querySelector('[data-excluded-count]');
+            var existingMap = {};
+            try { existingMap = JSON.parse(container.getAttribute('data-existing-demands') || '{}'); } catch (e) { existingMap = {}; }
+
+            function excludedSet() {
+                if (!excludeToggle || !excludeToggle.checked || !purposeSel || purposeSel.value !== 'project') return null;
+                if (!projectSel || !projectSel.value) return null;
+                var list = existingMap[projectSel.value] || [];
+                var set = {};
+                list.forEach(function (id) { set[String(id)] = true; });
+                return set;
+            }
+
             function allCbs() { return container.querySelectorAll('[data-member-cb]'); }
             function visibleCbs() {
                 return rows.filter(function (r) { return r.style.display !== 'none'; })
@@ -69,15 +88,23 @@
                 }
             }
             function applyFilter() {
-                var q = (filter.value || '').trim().toLowerCase();
+                var q = (filter && filter.value || '').trim().toLowerCase();
+                var excluded = excludedSet();
                 var anyVisible = false;
+                var excludedShown = 0;
                 rows.forEach(function (r) {
+                    var cb = r.querySelector('[data-member-cb]');
                     var hay = r.getAttribute('data-search') || '';
-                    var show = q === '' || hay.indexOf(q) !== -1;
+                    var passesSearch = q === '' || hay.indexOf(q) !== -1;
+                    var isExcluded = excluded && cb && excluded[cb.value] === true;
+                    var show = passesSearch && !isExcluded;
                     r.style.display = show ? '' : 'none';
+                    if (isExcluded && cb && cb.checked) cb.checked = false; // never submit excluded
                     if (show) anyVisible = true;
+                    if (passesSearch && isExcluded) excludedShown++;
                 });
                 if (emptyEl) emptyEl.classList.toggle('hidden', anyVisible);
+                if (excludedCountEl) excludedCountEl.textContent = excluded ? '(' + excludedShown + ' hidden)' : '';
                 updateCount();
             }
             if (filter) filter.addEventListener('input', applyFilter);
@@ -87,10 +114,36 @@
                     updateCount();
                 });
             }
+            if (excludeToggle) excludeToggle.addEventListener('change', applyFilter);
+            if (projectSel) projectSel.addEventListener('change', applyFilter);
+            if (purposeSel) {
+                purposeSel.addEventListener('change', function () {
+                    if (excludeWrap) excludeWrap.style.display = purposeSel.value === 'project' ? 'block' : 'none';
+                    applyFilter();
+                });
+            }
             container.addEventListener('change', function (e) {
                 if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-member-cb')) updateCount();
             });
-            updateCount();
+            applyFilter();
+        });
+
+        // Live total for editable per-member amounts (demand confirm page).
+        document.querySelectorAll('[data-amount-sum]').forEach(function (scope) {
+            var totals = scope.querySelectorAll('[data-amount-total]');
+            function recompute() {
+                var sum = 0;
+                scope.querySelectorAll('[data-amount-input]').forEach(function (inp) {
+                    var v = parseFloat(inp.value);
+                    if (!isNaN(v) && v > 0) sum += v;
+                });
+                var text = sum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                totals.forEach(function (t) { t.textContent = text; });
+            }
+            scope.addEventListener('input', function (e) {
+                if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-amount-input')) recompute();
+            });
+            recompute();
         });
 
         // Auto-hide success flashes after a few seconds.

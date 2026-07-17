@@ -1,6 +1,7 @@
 <?php $this->layout('layouts.app');
-/** @var list $members */ /** @var list $projects */ /** @var list $preselected */
+/** @var list $members */ /** @var list $projects */ /** @var list $preselected */ /** @var array $existingDemands */
 $selP = static fn ($id) => (string) old('purpose', 'subscription') === $id ? 'selected' : '';
+$existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
 ?>
 
 <div class="mb-6">
@@ -54,11 +55,20 @@ $selP = static fn ($id) => (string) old('purpose', 'subscription') === $id ? 'se
             </div>
 
             <!-- Right: member selection -->
-            <div class="lg:col-span-3" data-member-select>
+            <div class="lg:col-span-3" data-member-select data-existing-demands='<?= e($existingJson) ?>'>
                 <div class="mb-3 flex items-center justify-between">
                     <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Select members</h2>
                     <span class="text-sm text-gray-500"><span data-selected-count>0</span> selected</span>
                 </div>
+
+                <div data-exclude-wrap class="mb-3 rounded-lg bg-amber-50 px-3 py-2" style="display:<?= old('purpose') === 'project' ? 'block' : 'none' ?>">
+                    <label class="flex items-center gap-2 text-sm text-amber-800">
+                        <input type="checkbox" data-exclude-existing class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                        Exclude members who already have a demand for the selected project
+                        <span data-excluded-count class="ml-1 font-medium"></span>
+                    </label>
+                </div>
+
                 <input type="text" data-member-filter placeholder="Search by name, member number or mobile…" class="form-input mb-3">
 
                 <div class="overflow-hidden rounded-lg ring-1 ring-gray-200">

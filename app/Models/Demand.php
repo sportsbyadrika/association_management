@@ -44,6 +44,27 @@ final class Demand extends Model
         return $this->paginateQuery($base, $count, $params, $page, $perPage);
     }
 
+    /**
+     * Map of project_id => [member_id, ...] for members who already have an
+     * active (non-cancelled) demand for that project. Used to optionally
+     * exclude them when raising a new project demand.
+     *
+     * @return array<int,list<int>>
+     */
+    public function projectMemberMap(int $associationId): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT project_id, member_id FROM demands
+             WHERE association_id = ? AND project_id IS NOT NULL AND status <> 'cancelled'",
+            [$associationId]
+        );
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int) $r['project_id']][] = (int) $r['member_id'];
+        }
+        return $map;
+    }
+
     /** @return list<array<string,mixed>> */
     public function forMember(int $memberId): array
     {
