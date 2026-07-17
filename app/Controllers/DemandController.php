@@ -77,12 +77,21 @@ final class DemandController extends Controller
             $preselected[] = $pre;
         }
 
+        // Opening from a project preselects "project" purpose + that project.
+        $presetProject = (int) $request->input('project_id', 0);
+        if ($presetProject > 0 && (new Project())->findForAssociation($presetProject, $assocId) === null) {
+            $presetProject = 0;
+        }
+        $presetPurpose = $presetProject > 0 ? 'project' : 'subscription';
+
         $this->view('demands.form', [
             'title'           => 'Raise Demand',
             'members'         => (new Member())->selectableForAssociation($assocId),
             'projects'        => (new Project())->options($assocId),
             'preselected'     => $preselected,
             'existingDemands' => (new Demand())->projectMemberMap($assocId),
+            'presetPurpose'   => $presetPurpose,
+            'presetProject'   => $presetProject,
         ]);
         Session::clearFormState();
     }

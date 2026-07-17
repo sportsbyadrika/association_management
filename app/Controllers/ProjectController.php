@@ -10,10 +10,12 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Core\Session;
 use App\Core\Validator;
+use App\Models\Association;
 use App\Models\Master;
 use App\Models\Project;
 use App\Models\ProjectMilestone;
 use App\Services\ImageUploader;
+use App\Services\PdfReport;
 
 final class ProjectController extends Controller
 {
@@ -55,14 +57,129 @@ final class ProjectController extends Controller
             Response::notFound();
         }
         $projectModel = new Project();
+        $breakdown = $this->demandBreakdown((int) $project['id'], $assocId);
         $this->view('projects.show', [
             'title'      => $project['name'],
             'project'    => $project,
             'milestones' => (new ProjectMilestone())->forProject((int) $project['id']),
             'collected'  => $projectModel->collected((int) $project['id']),
             'spent'      => $projectModel->spent((int) $project['id']),
+            'received'   => $breakdown['received'],
+            'pending'    => $breakdown['pending'],
+            'demandTotals' => [
+                'demanded' => $breakdown['total_demanded'],
+                'received' => $breakdown['total_received'],
+            ],
         ]);
         Session::clearFormState();
+    }
+
+    /**
+     * Printable (PDF) project ledger: project details + a demand list with
+     * each member's payment status and received date.
+     */
+    public function ledger(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $project = (new Project())->findWithType((int) $params['id'], $assocId);
+        if ($project === null) {
+            Response::notFound();
+        }
+        $model = new Project();
+        $collected = $model->collected((int) $project['id']);
+        $spent = $model->spent((int) $project['id']);
+        $breakdown = $this->demandBreakdown((int) $project['id'], $assocId);
+
+        $columns = ['Member No.', 'Name', 'Demand Amount', 'Status', 'Received On'];
+        $rows = [];
+        foreach ($breakdown['all'] as $e) {
+            $rows[] = [
+                $e['member_number'] ?: '-',
+                $e['name'],
+                number_format($e['amount'], 2),
+                $e['status'],
+                $e['received_on'] ? format_date($e['received_on']) : '-',
+            ];
+        }
+
+        $meta = [
+            'Type'   => $project['project_type_name'] ?? 'General',
+            'Status' => ucfirst(str_replace('_', ' ', (string) $project['status'])),
+        ];
+        $summary = [
+            'Target'    => number_format((float) $project['target_amount'], 2),
+            'Demanded'  => number_format($breakdown['total_demanded'], 2),
+            'Received'  => number_format($breakdown['total_received'], 2),
+            'Collected' => number_format($collected, 2),
+            'Spent'     => number_format($spent, 2),
+        ];
+
+        $this->pdf($assocId)->stream(
+            'project-ledger-' . $project['id'],
+            'Project Ledger — ' . $project['name'],
+            $columns,
+            $rows,
+            $meta,
+            $summary
+        );
+    }
+
+    /**
+     * Split a project's demands into received / pending with computed status.
+     * @return array{received:list,pending:list,all:list,total_demanded:float,total_received:float}
+     */
+    private function demandBreakdown(int $projectId, int $assocId): array
+    {
+        $rows = (new Project())->demandLedger($projectId, $assocId);
+        $received = [];
+        $pending = [];
+        $all = [];
+        $totalDemanded = 0.0;
+        $totalReceived = 0.0;
+
+        foreach ($rows as $r) {
+            $amount = (float) $r['amount'];
+            $paid = (float) $r['paid'];
+            $fully = $r['status'] === 'paid' || $paid >= $amount;
+            $entry = [
+                'member_number' => $r['member_number'],
+                'name'          => $r['name'],
+                'amount'        => $amount,
+                'paid'          => $paid,
+                'status'        => $fully ? 'Received' : ($paid > 0 ? 'Partial' : 'Pending'),
+                'received_on'   => $r['last_received'],
+            ];
+            $totalDemanded += $amount;
+            $totalReceived += $paid;
+            $all[] = $entry;
+            if ($fully) {
+                $received[] = $entry;
+            } else {
+                $pending[] = $entry;
+            }
+        }
+
+        return [
+            'received'       => $received,
+            'pending'        => $pending,
+            'all'            => $all,
+            'total_demanded' => $totalDemanded,
+            'total_received' => $totalReceived,
+        ];
+    }
+
+    private function pdf(int $assocId): PdfReport
+    {
+        $association = (new Association())->find($assocId);
+        $name = $association['name'] ?? 'Habitract';
+        $logo = null;
+        if (!empty($association['logo_path'])) {
+            $candidate = (new ImageUploader())->baseDir() . '/' . $association['logo_path'];
+            if (is_file($candidate)) {
+                $logo = $candidate;
+            }
+        }
+        return new PdfReport($name, $logo);
     }
 
     public function edit(Request $request, array $params): void

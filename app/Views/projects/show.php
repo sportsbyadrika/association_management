@@ -1,12 +1,39 @@
-<?php $this->layout('layouts.app'); /** @var array $project */ /** @var list $milestones */ /** @var float $collected */ /** @var float $spent */
+<?php $this->layout('layouts.app');
+/** @var array $project */ /** @var list $milestones */ /** @var float $collected */ /** @var float $spent */
+/** @var list $received */ /** @var list $pending */ /** @var array $demandTotals */
 $target = (float) $project['target_amount'];
 $pct = $target > 0 ? min(100, (int) round($collected / $target * 100)) : 0;
+
+$renderMemberList = static function (array $list): void {
+    ?>
+    <div class="overflow-x-auto">
+        <table class="table">
+            <thead><tr><th>Member No.</th><th>Name</th><th class="text-right">Demand Amount</th><th>Received On</th></tr></thead>
+            <tbody>
+            <?php foreach ($list as $row): ?>
+                <tr>
+                    <td class="font-medium text-gray-700"><?= e($row['member_number'] ?: '—') ?></td>
+                    <td><?= e($row['name']) ?></td>
+                    <td class="text-right">₹ <?= money($row['amount']) ?></td>
+                    <td><?= $row['received_on'] ? e(format_date($row['received_on'])) : '—' ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if ($list === []): ?>
+                <tr><td colspan="4" class="text-center text-gray-400 py-6">No members.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php
+};
 ?>
 
 <div class="mb-6 flex items-center justify-between">
     <a href="<?= e(url('/projects')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to projects</a>
-    <div class="flex gap-2">
+    <div class="flex flex-wrap gap-2">
+        <a href="<?= e(url('/demands/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add demand</a>
         <a href="<?= e(url('/receipts/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add collection</a>
+        <a href="<?= e(url('/projects/' . $project['id'] . '/ledger')) ?>" target="_blank" rel="noopener" class="btn-secondary btn-sm">Print Ledger</a>
         <a href="<?= e(url('/projects/' . $project['id'] . '/edit')) ?>" class="btn-primary btn-sm">Edit</a>
     </div>
 </div>
@@ -58,6 +85,22 @@ $pct = $target > 0 ? min(100, (int) round($collected / $target * 100)) : 0;
                 <?php if ($milestones === []): ?>
                     <p class="p-6 text-center text-gray-400">No milestones yet.</p>
                 <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Demand received / pending -->
+        <div class="card" data-tabs>
+            <div class="border-b border-gray-200 px-6 pt-4">
+                <div class="flex gap-6">
+                    <button type="button" data-tab-btn="received" class="-mb-px border-b-2 border-brand-600 pb-3 text-sm font-medium text-brand-700">Received (<?= count($received) ?>)</button>
+                    <button type="button" data-tab-btn="pending" class="-mb-px border-b-2 border-transparent pb-3 text-sm font-medium text-gray-500 hover:text-gray-700">Pending (<?= count($pending) ?>)</button>
+                </div>
+            </div>
+            <div data-tab-panel="received">
+                <?php $renderMemberList($received); ?>
+            </div>
+            <div data-tab-panel="pending" class="hidden">
+                <?php $renderMemberList($pending); ?>
             </div>
         </div>
     </div>
