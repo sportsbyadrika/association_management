@@ -57,6 +57,7 @@
             // project" controls (present only on the Raise Demand page). Tied
             // to the (independent) project selection.
             var projectSel = document.getElementById('project_id');
+            var memberTypeSel = document.getElementById('member_type_filter');
             var excludeToggle = container.querySelector('[data-exclude-existing]');
             var excludeWrap = document.querySelector('[data-exclude-wrap]');
             var excludedCountEl = container.querySelector('[data-excluded-count]');
@@ -91,6 +92,7 @@
             }
             function applyFilter() {
                 var q = (filter && filter.value || '').trim().toLowerCase();
+                var typeFilter = memberTypeSel ? memberTypeSel.value : '';
                 var excluded = excludedSet();
                 var anyVisible = false;
                 var excludedShown = 0;
@@ -98,18 +100,23 @@
                     var cb = r.querySelector('[data-member-cb]');
                     var hay = r.getAttribute('data-search') || '';
                     var passesSearch = q === '' || hay.indexOf(q) !== -1;
+                    var passesType = typeFilter === '' || r.getAttribute('data-member-type') === typeFilter;
                     var isExcluded = excluded && cb && excluded[cb.value] === true;
-                    var show = passesSearch && !isExcluded;
+                    var show = passesSearch && passesType && !isExcluded;
                     r.style.display = show ? '' : 'none';
-                    if (isExcluded && cb && cb.checked) cb.checked = false; // never submit excluded
+                    // Excluded members are never charged, so uncheck them; a
+                    // member merely hidden by the search/type filter keeps its
+                    // selection so you can build a list across types.
+                    if (isExcluded && cb && cb.checked) cb.checked = false;
                     if (show) anyVisible = true;
-                    if (passesSearch && isExcluded) excludedShown++;
+                    if (passesSearch && passesType && isExcluded) excludedShown++;
                 });
                 if (emptyEl) emptyEl.classList.toggle('hidden', anyVisible);
                 if (excludedCountEl) excludedCountEl.textContent = excluded ? '(' + excludedShown + ' hidden)' : '';
                 updateCount();
             }
             if (filter) filter.addEventListener('input', applyFilter);
+            if (memberTypeSel) memberTypeSel.addEventListener('change', applyFilter);
             if (selectAll) {
                 selectAll.addEventListener('change', function () {
                     visibleCbs().forEach(function (cb) { cb.checked = selectAll.checked; });

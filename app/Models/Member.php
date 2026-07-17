@@ -93,7 +93,7 @@ final class Member extends Model
     public function selectableForAssociation(int $associationId): array
     {
         return $this->db->fetchAll(
-            'SELECT id, member_number, name, mobile
+            'SELECT id, member_number, name, mobile, member_type_id
              FROM members WHERE association_id = ? AND is_active = 1
              ORDER BY name ASC',
             [$associationId]
