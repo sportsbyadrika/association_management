@@ -7,7 +7,7 @@
     <meta name="description" content="Habitract — membership management software for associations. Manage members, receipts &amp; expenditure, projects and reports in one place.">
     <title>Habitract · Membership Management for Associations</title>
     <link rel="stylesheet" href="<?= e(url('/assets/css/app.css')) ?>">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏘️</text></svg>">
+    <?php include dirname(__DIR__) . '/partials/head_icons.php'; ?>
 </head>
 <body class="flex min-h-full flex-col bg-white text-gray-900">
 
