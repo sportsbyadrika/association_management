@@ -21,6 +21,12 @@
     </div>
 
     <div class="card card-body">
+        <h2 class="font-semibold text-gray-900">Purpose ledger</h2>
+        <p class="mt-1 text-sm text-gray-500">Per-member demand, collection &amp; balance for a purpose (e.g. Subscription), with a financial-year filter.</p>
+        <a href="<?= e(url('/reports/purpose-ledger')) ?>" class="btn-primary btn-sm mt-4">Open</a>
+    </div>
+
+    <div class="card card-body">
         <h2 class="font-semibold text-gray-900">Income report</h2>
         <p class="mt-1 text-sm text-gray-500">Receipts by income head and by project, with a date filter.</p>
         <a href="<?= e(url('/reports/income')) ?>" class="btn-primary btn-sm mt-4">Open</a>

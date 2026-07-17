@@ -100,6 +100,7 @@ final class DemandController extends Controller
         $this->view('demands.form', [
             'title'           => 'Raise Demand',
             'members'         => (new Member())->selectableForAssociation($assocId),
+            'memberTypes'     => (new \App\Models\Master('member-types'))->activeForAssociation($assocId),
             'purposes'        => $purposes,
             'projects'        => (new Project())->options($assocId),
             'preselected'     => $preselected,

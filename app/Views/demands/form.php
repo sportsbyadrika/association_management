@@ -1,5 +1,5 @@
 <?php $this->layout('layouts.app');
-/** @var list $members */ /** @var list $purposes */ /** @var list $projects */ /** @var list $preselected */ /** @var array $existingDemands */ /** @var int $presetProject */
+/** @var list $members */ /** @var list $memberTypes */ /** @var list $purposes */ /** @var list $projects */ /** @var list $preselected */ /** @var array $existingDemands */ /** @var int $presetProject */
 $presetProject = $presetProject ?? 0;
 $presetPurpose = $presetPurpose ?? 0;
 $defaultPurpose = $presetPurpose > 0 ? $presetPurpose : ($purposes[0]['id'] ?? '');
@@ -52,6 +52,16 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
                     <?php if ($m = error_for('project_id')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
                 </div>
                 <div>
+                    <label for="member_type_filter" class="form-label">Member type (optional)</label>
+                    <select id="member_type_filter" name="member_type_filter" class="form-select">
+                        <option value="">— All member types —</option>
+                        <?php foreach ($memberTypes as $mt): ?>
+                            <option value="<?= (int) $mt['id'] ?>" <?= (string) old('member_type_filter') === (string) $mt['id'] ? 'selected' : '' ?>><?= e($mt['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-400">Filters the member list on the right — not stored on the demand.</p>
+                </div>
+                <div>
                     <label for="amount" class="form-label">Amount per member (₹) *</label>
                     <input type="number" step="0.01" min="0.01" id="amount" name="amount" value="<?= old('amount') ?>" required class="form-input">
                     <?php if ($m = error_for('amount')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
@@ -96,7 +106,7 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
                             <tbody>
                             <?php foreach ($members as $m): ?>
                                 <?php $search = strtolower(trim(($m['member_number'] ?? '') . ' ' . $m['name'] . ' ' . ($m['mobile'] ?? ''))); ?>
-                                <tr data-row data-search="<?= e($search) ?>">
+                                <tr data-row data-search="<?= e($search) ?>" data-member-type="<?= (int) ($m['member_type_id'] ?? 0) ?>">
                                     <td><input type="checkbox" name="member_ids[]" value="<?= (int) $m['id'] ?>" data-member-cb <?= in_array((int) $m['id'], $preselected, true) ? 'checked' : '' ?> class="rounded border-gray-300 text-brand-600 focus:ring-brand-500"></td>
                                     <td class="font-medium text-gray-700"><?= e($m['member_number'] ?? '—') ?></td>
                                     <td><?= e($m['name']) ?></td>
