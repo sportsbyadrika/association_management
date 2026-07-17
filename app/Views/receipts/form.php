@@ -1,14 +1,35 @@
 <?php $this->layout('layouts.app');
 /** @var list $members */ /** @var list $incomeHeads */ /** @var list $projects */ /** @var list $bankAccounts */
+/** @var array|null $demand */ /** @var int $demandId */ /** @var string $prefillAmount */ /** @var int $returnLedger */
+$demand = $demand ?? null;
+$demandId = $demandId ?? 0;
+$prefillAmount = $prefillAmount ?? '';
+$returnLedger = $returnLedger ?? 0;
+$cancelUrl = $returnLedger > 0 ? url('/members/' . $returnLedger . '/ledger') : url('/receipts');
 $sel = static fn (string $field, $id, $default = 0) => (int) (old($field) !== '' ? old($field) : $default) === (int) $id ? 'selected' : '';
 $selMode = static fn ($m) => (string) old('mode', 'cash') === $m ? 'selected' : '';
 ?>
 
-<h1 class="mb-6 text-2xl font-bold text-gray-900">Record Receipt</h1>
+<div class="mb-6">
+    <?php if ($returnLedger > 0): ?>
+        <a href="<?= e($cancelUrl) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to member ledger</a>
+    <?php endif; ?>
+    <h1 class="mt-1 text-2xl font-bold text-gray-900">Record Receipt</h1>
+</div>
 
 <div class="max-w-2xl card card-body">
+    <?php if ($demand !== null): ?>
+        <div class="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-200">
+            Recording against a <span class="font-semibold"><?= e(ucfirst((string) $demand['purpose'])) ?></span> demand
+            of <span class="font-semibold">₹ <?= money($demand['amount']) ?></span><?= !empty($demand['due_date']) ? ' due ' . e(format_date($demand['due_date'])) : '' ?>.
+            The amount is pre-filled with the outstanding balance — adjust it for a part payment.
+        </div>
+    <?php endif; ?>
+
     <form method="post" action="<?= e(url('/receipts')) ?>" class="space-y-5" novalidate>
         <?= csrf_field() ?>
+        <?php if ($demandId > 0): ?><input type="hidden" name="demand_id" value="<?= (int) $demandId ?>"><?php endif; ?>
+        <?php if ($returnLedger > 0): ?><input type="hidden" name="return_ledger" value="<?= (int) $returnLedger ?>"><?php endif; ?>
         <div class="grid gap-5 sm:grid-cols-2">
             <div>
                 <label for="member_id" class="form-label">Member</label>
@@ -41,7 +62,7 @@ $selMode = static fn ($m) => (string) old('mode', 'cash') === $m ? 'selected' : 
             </div>
             <div>
                 <label for="amount" class="form-label">Amount (₹) *</label>
-                <input type="number" step="0.01" min="0.01" id="amount" name="amount" value="<?= old('amount') ?>" required class="form-input">
+                <input type="number" step="0.01" min="0.01" id="amount" name="amount" value="<?= old('amount', $prefillAmount) ?>" required class="form-input">
                 <?php if ($msg = error_for('amount')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
             </div>
             <div>
@@ -73,7 +94,7 @@ $selMode = static fn ($m) => (string) old('mode', 'cash') === $m ? 'selected' : 
         </div>
         <div class="flex gap-2 border-t border-gray-100 pt-4">
             <button type="submit" class="btn-primary">Save receipt</button>
-            <a href="<?= e(url('/receipts')) ?>" class="btn-secondary">Cancel</a>
+            <a href="<?= e($cancelUrl) ?>" class="btn-secondary">Cancel</a>
         </div>
     </form>
 </div>

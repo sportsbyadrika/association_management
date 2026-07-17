@@ -21,16 +21,35 @@ final class MemberLedger
         $demands = (new Demand())->forMember($memberId);
         $receipts = (new Receipt())->forMember($memberId);
 
+        // Sum receipts allocated to each demand, to derive an accurate status
+        // and the outstanding amount for a "record receipt" action.
+        $paidByDemand = [];
+        foreach ($receipts as $r) {
+            if (!empty($r['demand_id'])) {
+                $key = (int) $r['demand_id'];
+                $paidByDemand[$key] = ($paidByDemand[$key] ?? 0.0) + (float) $r['amount'];
+            }
+        }
+
         $entries = [];
         foreach ($demands as $d) {
             if ($d['status'] === 'cancelled') {
                 continue;
             }
+            $amount = (float) $d['amount'];
+            $paid = (float) ($paidByDemand[(int) $d['id']] ?? 0.0);
+            $remaining = max(0.0, round($amount - $paid, 2));
+            $status = $remaining <= 0 ? 'paid' : ($paid > 0 ? 'partial' : 'pending');
+
             $entries[] = [
                 'date'        => $d['due_date'] ?: substr((string) $d['created_at'], 0, 10),
                 'type'        => 'Demand',
+                'kind'        => 'demand',
+                'demand_id'   => (int) $d['id'],
+                'status'      => $status,
+                'remaining'   => $remaining,
                 'description' => ucfirst((string) $d['purpose']) . ($d['remarks'] ? ' — ' . $d['remarks'] : ''),
-                'debit'       => (float) $d['amount'],
+                'debit'       => $amount,
                 'credit'      => 0.0,
                 'sort'        => ($d['due_date'] ?: substr((string) $d['created_at'], 0, 10)) . '-0',
             ];
@@ -39,6 +58,7 @@ final class MemberLedger
             $entries[] = [
                 'date'        => $r['received_on'],
                 'type'        => 'Receipt',
+                'kind'        => 'receipt',
                 'description' => 'Payment received' . ($r['remarks'] ? ' — ' . $r['remarks'] : '') . ' (' . str_replace('_', ' ', (string) $r['mode']) . ')',
                 'debit'       => 0.0,
                 'credit'      => (float) $r['amount'],

@@ -81,4 +81,26 @@ final class Demand extends Model
             [$memberId]
         );
     }
+
+    /**
+     * Recompute a demand's status from the receipts allocated to it:
+     * paid (fully covered), partial (some paid) or pending (none).
+     * Cancelled demands are left untouched.
+     */
+    public function syncStatus(int $demandId): void
+    {
+        $demand = $this->find($demandId);
+        if ($demand === null || $demand['status'] === 'cancelled') {
+            return;
+        }
+        $paid = (float) $this->db->fetchColumn(
+            'SELECT COALESCE(SUM(amount),0) FROM receipts WHERE demand_id = ?',
+            [$demandId]
+        );
+        $amount = (float) $demand['amount'];
+        $status = $paid >= $amount ? 'paid' : ($paid > 0 ? 'partial' : 'pending');
+        if ($status !== $demand['status']) {
+            $this->db->run('UPDATE demands SET status = ? WHERE id = ?', [$status, $demandId]);
+        }
+    }
 }
