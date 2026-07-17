@@ -49,6 +49,14 @@ final class Receipt extends Model
         );
     }
 
+    public function totalForDemand(int $demandId): float
+    {
+        return (float) $this->db->fetchColumn(
+            'SELECT COALESCE(SUM(amount),0) FROM receipts WHERE demand_id = ?',
+            [$demandId]
+        );
+    }
+
     /**
      * Income grouped by income head and by project within a date range.
      * @return array{by_head:list<array<string,mixed>>,by_project:list<array<string,mixed>>,total:float}

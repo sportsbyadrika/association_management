@@ -11,6 +11,7 @@ use App\Core\Response;
 use App\Core\Session;
 use App\Core\Validator;
 use App\Models\BankAccount;
+use App\Models\Demand;
 use App\Models\Master;
 use App\Models\Member;
 use App\Models\Project;
@@ -35,14 +36,45 @@ final class ReceiptController extends Controller
     public function create(Request $request): void
     {
         $assocId = Auth::associationId();
+
+        $selectedMember = (int) $request->input('member_id', 0);
+        $selectedProject = (int) $request->input('project_id', 0);
+        $demandId = (int) $request->input('demand_id', 0);
+        $demand = null;
+        $prefillAmount = '';
+        $returnLedger = 0;
+
+        // If recording against a specific demand, prefill from it.
+        if ($demandId > 0) {
+            $demand = (new Demand())->findForAssociation($demandId, $assocId);
+            if ($demand !== null) {
+                $selectedMember = (int) $demand['member_id'];
+                $selectedProject = $demand['project_id'] ? (int) $demand['project_id'] : 0;
+                $paid = (new Receipt())->totalForDemand($demandId);
+                $prefillAmount = number_format(max(0, (float) $demand['amount'] - $paid), 2, '.', '');
+                $returnLedger = (int) $demand['member_id'];
+            } else {
+                $demandId = 0; // not ours — ignore
+            }
+        }
+
+        // Members may also pass an explicit return-to-ledger member id.
+        if ($returnLedger === 0) {
+            $returnLedger = (int) $request->input('return_ledger', 0);
+        }
+
         $this->view('receipts.form', [
-            'title'       => 'Record Receipt',
-            'members'     => (new Member())->options($assocId),
-            'incomeHeads' => (new Master('income-heads'))->activeForAssociation($assocId),
-            'projects'    => (new Project())->options($assocId),
-            'bankAccounts' => (new BankAccount())->options($assocId),
-            'selectedMember'  => (int) $request->input('member_id', 0),
-            'selectedProject' => (int) $request->input('project_id', 0),
+            'title'           => 'Record Receipt',
+            'members'         => (new Member())->options($assocId),
+            'incomeHeads'     => (new Master('income-heads'))->activeForAssociation($assocId),
+            'projects'        => (new Project())->options($assocId),
+            'bankAccounts'    => (new BankAccount())->options($assocId),
+            'selectedMember'  => $selectedMember,
+            'selectedProject' => $selectedProject,
+            'demand'          => $demand,
+            'demandId'        => $demandId,
+            'prefillAmount'   => $prefillAmount,
+            'returnLedger'    => $returnLedger,
         ]);
         Session::clearFormState();
     }
@@ -54,12 +86,15 @@ final class ReceiptController extends Controller
             'member_id'      => $request->input('member_id') ?: null,
             'income_head_id' => $request->input('income_head_id') ?: null,
             'project_id'     => $request->input('project_id') ?: null,
+            'demand_id'      => $request->input('demand_id') ?: null,
             'amount'         => (string) $request->input('amount', ''),
             'mode'           => (string) $request->input('mode', 'cash'),
             'bank_account_id' => $request->input('bank_account_id') ?: null,
             'received_on'    => (string) $request->input('received_on', ''),
             'remarks'        => (string) $request->input('remarks', ''),
         ];
+        $returnLedger = (int) $request->input('return_ledger', 0);
+
         $validator = Validator::make($input, [
             'amount'      => 'required|decimal|min_val:0.01',
             'mode'        => 'required|in:cash,fund_transfer',
@@ -77,11 +112,26 @@ final class ReceiptController extends Controller
 
         $this->assertTenant($assocId, $input);
 
-        (new Receipt())->create([
+        // A linked demand must belong to this association; align member/project.
+        $demand = null;
+        if ($input['demand_id'] !== null) {
+            $demand = (new Demand())->findForAssociation((int) $input['demand_id'], $assocId);
+            if ($demand === null) {
+                $this->withErrors(['amount' => 'The linked demand is invalid.'], $input);
+            }
+            $input['member_id'] = (int) $demand['member_id'];
+            if ($demand['project_id']) {
+                $input['project_id'] = (int) $demand['project_id'];
+            }
+        }
+
+        $receipt = new Receipt();
+        $receipt->create([
             'association_id'  => $assocId,
             'member_id'       => $input['member_id'],
             'income_head_id'  => $input['income_head_id'],
             'project_id'      => $input['project_id'],
+            'demand_id'       => $input['demand_id'],
             'amount'          => $input['amount'],
             'mode'            => $input['mode'],
             'bank_account_id' => $input['mode'] === 'fund_transfer' ? $input['bank_account_id'] : ($input['bank_account_id'] ?: null),
@@ -90,7 +140,17 @@ final class ReceiptController extends Controller
             'created_by'      => Auth::id(),
         ]);
 
+        // Keep the demand's status in sync (pending -> partial/paid).
+        if ($demand !== null) {
+            (new Demand())->syncStatus((int) $demand['id']);
+        }
+
         $this->flash('success', 'Receipt recorded.');
+
+        // Return to the member's ledger when the receipt was raised from there.
+        if ($returnLedger > 0 && (new Member())->findForAssociation($returnLedger, $assocId) !== null) {
+            $this->redirect('/members/' . $returnLedger . '/ledger');
+        }
         $this->redirect('/receipts');
     }
 
@@ -101,7 +161,11 @@ final class ReceiptController extends Controller
         if ($receipt === null) {
             Response::notFound();
         }
+        $linkedDemand = $receipt['demand_id'] ? (int) $receipt['demand_id'] : 0;
         (new Receipt())->delete((int) $receipt['id']);
+        if ($linkedDemand > 0) {
+            (new Demand())->syncStatus($linkedDemand);
+        }
         $this->flash('success', 'Receipt deleted.');
         $this->redirect('/receipts');
     }

@@ -44,6 +44,27 @@ final class Demand extends Model
         return $this->paginateQuery($base, $count, $params, $page, $perPage);
     }
 
+    /**
+     * Map of project_id => [member_id, ...] for members who already have an
+     * active (non-cancelled) demand for that project. Used to optionally
+     * exclude them when raising a new project demand.
+     *
+     * @return array<int,list<int>>
+     */
+    public function projectMemberMap(int $associationId): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT project_id, member_id FROM demands
+             WHERE association_id = ? AND project_id IS NOT NULL AND status <> 'cancelled'",
+            [$associationId]
+        );
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int) $r['project_id']][] = (int) $r['member_id'];
+        }
+        return $map;
+    }
+
     /** @return list<array<string,mixed>> */
     public function forMember(int $memberId): array
     {
@@ -59,5 +80,27 @@ final class Demand extends Model
             "SELECT COALESCE(SUM(amount),0) FROM demands WHERE member_id = ? AND status <> 'cancelled'",
             [$memberId]
         );
+    }
+
+    /**
+     * Recompute a demand's status from the receipts allocated to it:
+     * paid (fully covered), partial (some paid) or pending (none).
+     * Cancelled demands are left untouched.
+     */
+    public function syncStatus(int $demandId): void
+    {
+        $demand = $this->find($demandId);
+        if ($demand === null || $demand['status'] === 'cancelled') {
+            return;
+        }
+        $paid = (float) $this->db->fetchColumn(
+            'SELECT COALESCE(SUM(amount),0) FROM receipts WHERE demand_id = ?',
+            [$demandId]
+        );
+        $amount = (float) $demand['amount'];
+        $status = $paid >= $amount ? 'paid' : ($paid > 0 ? 'partial' : 'pending');
+        if ($status !== $demand['status']) {
+            $this->db->run('UPDATE demands SET status = ? WHERE id = ?', [$status, $demandId]);
+        }
     }
 }

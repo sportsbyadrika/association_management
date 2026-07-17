@@ -77,10 +77,11 @@ final class DemandController extends Controller
         }
 
         $this->view('demands.form', [
-            'title'       => 'Raise Demand',
-            'members'     => (new Member())->selectableForAssociation($assocId),
-            'projects'    => (new Project())->options($assocId),
-            'preselected' => $preselected,
+            'title'           => 'Raise Demand',
+            'members'         => (new Member())->selectableForAssociation($assocId),
+            'projects'        => (new Project())->options($assocId),
+            'preselected'     => $preselected,
+            'existingDemands' => (new Demand())->projectMemberMap($assocId),
         ]);
         Session::clearFormState();
     }
@@ -95,6 +96,17 @@ final class DemandController extends Controller
         $details = $this->validateDetails($request);
         $members = $this->resolveMembers($request, $assocId);
 
+        $memberAmounts = [];
+        foreach ($members as $m) {
+            $memberAmounts[(int) $m['id']] = $details['amount'];
+        }
+
+        $this->renderConfirm($details, $members, $memberAmounts);
+    }
+
+    private function renderConfirm(array $details, array $members, array $memberAmounts, array $invalidIds = [], ?string $error = null): void
+    {
+        $assocId = Auth::associationId();
         $projectName = null;
         if ($details['purpose'] === 'project' && $details['project_id'] !== null) {
             $project = (new Project())->findForAssociation((int) $details['project_id'], $assocId);
@@ -102,10 +114,13 @@ final class DemandController extends Controller
         }
 
         $this->view('demands.confirm', [
-            'title'       => 'Confirm Demands',
-            'details'     => $details,
-            'members'     => $members,
-            'projectName' => $projectName,
+            'title'         => 'Confirm Demands',
+            'details'       => $details,
+            'members'       => $members,
+            'projectName'   => $projectName,
+            'memberAmounts' => $memberAmounts,
+            'invalidIds'    => $invalidIds,
+            'error'         => $error,
         ]);
     }
 
@@ -118,29 +133,53 @@ final class DemandController extends Controller
         $details = $this->validateDetails($request);
         $members = $this->resolveMembers($request, $assocId);
 
+        // Per-member amount overrides (fall back to the base amount).
+        $overrides = $request->input('amounts', []);
+        if (!is_array($overrides)) {
+            $overrides = [];
+        }
+        $amounts = [];
+        $invalid = [];
+        foreach ($members as $m) {
+            $id = (int) $m['id'];
+            $raw = isset($overrides[$id]) ? trim((string) $overrides[$id]) : '';
+            $value = $raw === '' ? (string) $details['amount'] : $raw;
+            if (!preg_match('/^\d{1,10}(\.\d{1,2})?$/', $value) || (float) $value <= 0) {
+                $invalid[] = $id;
+            }
+            $amounts[$id] = $value;
+        }
+
+        if ($invalid !== []) {
+            $this->renderConfirm($details, $members, $amounts, $invalid,
+                'Some amounts are invalid. Each amount must be a number greater than zero.');
+            return;
+        }
+
         $demand = new Demand();
-        $count = $demand->db()->transaction(function () use ($demand, $members, $details, $assocId): int {
+        $total = 0.0;
+        $count = $demand->db()->transaction(function () use ($demand, $members, $details, $assocId, $amounts, &$total): int {
             $n = 0;
             foreach ($members as $m) {
+                $id = (int) $m['id'];
                 $demand->create([
                     'association_id' => $assocId,
-                    'member_id'  => (int) $m['id'],
+                    'member_id'  => $id,
                     'purpose'    => $details['purpose'],
                     'project_id' => $details['purpose'] === 'project' ? $details['project_id'] : null,
-                    'amount'     => $details['amount'],
+                    'amount'     => $amounts[$id],
                     'due_date'   => $details['due_date'] ?: null,
                     'status'     => 'pending',
                     'remarks'    => $details['remarks'] ?: null,
                     'created_by' => Auth::id(),
                 ]);
+                $total += (float) $amounts[$id];
                 $n++;
             }
             return $n;
         });
 
-        $each = number_format((float) $details['amount'], 2);
-        $total = number_format((float) $details['amount'] * $count, 2);
-        $this->flash('success', "{$count} demand(s) raised — ₹{$each} each (total ₹{$total}).");
+        $this->flash('success', "{$count} demand(s) raised — total ₹" . number_format($total, 2) . '.');
         $this->redirect('/demands');
     }
 
