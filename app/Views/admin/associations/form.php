@@ -42,8 +42,9 @@ $val = static fn (string $k, $d = '') => e(old($k) !== '' ? old($k) : ($associat
                 <?php if ($isEdit && !empty($association['logo_path'])): ?>
                     <img src="<?= e(url('/photo/association/' . $association['id'])) ?>" alt="" class="mb-2 h-16 w-16 rounded-lg object-cover ring-1 ring-gray-200">
                 <?php endif; ?>
-                <input type="file" id="logo" name="logo" accept="image/jpeg,image/png,image/webp" class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-brand-700">
+                <input type="file" id="logo" name="logo" accept="image/jpeg,image/png,image/webp" data-crop="square" class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-brand-700">
                 <?php if ($m = error_for('logo')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
+                <p class="mt-1 text-xs text-gray-400">You can crop to a square after choosing.</p>
             </div>
             <div class="sm:col-span-2">
                 <label class="inline-flex items-center gap-2">

@@ -60,5 +60,6 @@ if (!isset($GLOBALS['__association'])) {
     </footer>
 
     <script src="<?= e(asset('/assets/js/app.js')) ?>"></script>
+    <script src="<?= e(asset('/assets/js/cropper.js')) ?>"></script>
 </body>
 </html>

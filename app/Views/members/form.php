@@ -86,9 +86,9 @@ $selGender = static fn ($g) => (string) (old('gender') !== '' ? old('gender') : 
                 <?php if ($isEdit && !empty($member['photo_path'])): ?>
                     <img src="<?= e(url('/photo/member/' . $member['id'])) ?>" alt="" class="mb-2 h-20 w-20 rounded-lg object-cover ring-1 ring-gray-200">
                 <?php endif; ?>
-                <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-brand-700">
+                <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" data-crop="passport" class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-brand-700">
                 <?php if ($m = error_for('photo')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
-                <p class="mt-1 text-xs text-gray-400">JPEG/PNG/WebP, max 3&nbsp;MB.</p>
+                <p class="mt-1 text-xs text-gray-400">JPEG/PNG/WebP, max 3&nbsp;MB. You can crop to passport size after choosing.</p>
             </div>
         </div>
         <div class="flex gap-2 border-t border-gray-100 pt-4">

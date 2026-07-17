@@ -54,3 +54,42 @@
         @apply inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition;
     }
 }
+
+/* ---- Image cropper (plain CSS so it is never purged) -------------------- */
+.cropper-overlay {
+    position: fixed; inset: 0; z-index: 60;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem; background: rgba(17, 24, 39, 0.7);
+}
+.cropper-modal {
+    width: 100%; max-width: 26rem; background: #fff;
+    border-radius: 0.85rem; padding: 1.25rem;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+}
+.cropper-title { font-weight: 700; color: #111827; margin-bottom: 0.25rem; }
+.cropper-subtitle { font-size: 0.8rem; color: #6b7280; margin-bottom: 0.85rem; }
+.cropper-stage {
+    position: relative; overflow: hidden; margin: 0 auto;
+    background: #111827; border-radius: 0.4rem;
+    touch-action: none; user-select: none; cursor: grab;
+}
+.cropper-stage.is-grabbing { cursor: grabbing; }
+.cropper-stage img {
+    position: absolute; top: 0; left: 0; transform-origin: 0 0;
+    max-width: none; -webkit-user-drag: none; user-select: none; pointer-events: none;
+}
+.cropper-grid {
+    position: absolute; inset: 0; pointer-events: none;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+}
+.cropper-grid::before, .cropper-grid::after {
+    content: ""; position: absolute; background: rgba(255, 255, 255, 0.35);
+}
+.cropper-grid::before { left: 33.33%; right: 33.33%; top: 0; bottom: 0; border-left: 1px solid rgba(255,255,255,.35); border-right: 1px solid rgba(255,255,255,.35); background: transparent; }
+.cropper-grid::after { top: 33.33%; bottom: 33.33%; left: 0; right: 0; border-top: 1px solid rgba(255,255,255,.35); border-bottom: 1px solid rgba(255,255,255,.35); background: transparent; }
+.cropper-zoom { display: flex; align-items: center; gap: 0.6rem; margin-top: 1rem; }
+.cropper-zoom input[type="range"] { flex: 1; accent-color: #047857; }
+.cropper-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+.cropper-preview-wrap { margin-top: 0.6rem; display: flex; align-items: center; gap: 0.6rem; }
+.cropper-preview-wrap img { border-radius: 0.4rem; object-fit: cover; box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
+.cropper-preview-note { font-size: 0.75rem; color: #059669; }
