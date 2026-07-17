@@ -8,6 +8,11 @@ $statusBadge = static fn (string $s): string => [
     'partial' => 'bg-blue-100 text-blue-800',
     'pending' => 'bg-amber-100 text-amber-800',
 ][$s] ?? 'bg-gray-100 text-gray-600';
+$typeBadge = static fn (string $t): string => [
+    'Receipt'    => 'bg-brand-100 text-brand-800',
+    'Demand'     => 'bg-amber-100 text-amber-800',
+    'Adjustment' => 'bg-indigo-100 text-indigo-800',
+][$t] ?? 'bg-gray-100 text-gray-600';
 ?>
 <div class="grid gap-4 sm:grid-cols-3">
     <div class="card card-body">
@@ -17,6 +22,9 @@ $statusBadge = static fn (string $s): string => [
     <div class="card card-body">
         <p class="text-sm text-gray-500">Total paid</p>
         <p class="mt-1 text-xl font-bold text-brand-700">₹ <?= money($ledger['total_paid']) ?></p>
+        <?php if (($ledger['total_adjusted'] ?? 0) > 0): ?>
+            <p class="mt-1 text-xs text-indigo-600">+ ₹<?= money($ledger['total_adjusted']) ?> marked paid (no receipt)</p>
+        <?php endif; ?>
     </div>
     <div class="card card-body">
         <p class="text-sm text-gray-500">Outstanding balance</p>
@@ -40,7 +48,7 @@ $statusBadge = static fn (string $s): string => [
                 <tr>
                     <td><?= e(format_date($row['date'])) ?></td>
                     <td>
-                        <span class="badge <?= $row['type'] === 'Receipt' ? 'bg-brand-100 text-brand-800' : 'bg-amber-100 text-amber-800' ?>"><?= e($row['type']) ?></span>
+                        <span class="badge <?= $typeBadge($row['type']) ?>"><?= e($row['type']) ?></span>
                     </td>
                     <td class="text-gray-600"><?= e($row['description']) ?></td>
                     <td class="text-right"><?= $row['debit'] > 0 ? '₹ ' . money($row['debit']) : '—' ?></td>
@@ -52,6 +60,11 @@ $statusBadge = static fn (string $s): string => [
                             <?php if ($canRecord && in_array($row['status'], ['pending', 'partial'], true)): ?>
                                 <a href="<?= e(url('/receipts/create?demand_id=' . $row['demand_id'])) ?>"
                                    class="ml-2 text-sm font-medium text-brand-700 hover:underline">Record receipt<?= $row['remaining'] > 0 ? ' (₹' . money($row['remaining']) . ')' : '' ?></a>
+                                <span class="text-gray-300">·</span>
+                                <form method="post" action="<?= e(url('/demands/' . $row['demand_id'] . '/mark-paid')) ?>" class="inline" data-confirm="Mark this demand as paid without recording a receipt?">
+                                    <?= csrf_field() ?>
+                                    <button type="submit" class="text-sm text-gray-500 hover:underline">Mark paid</button>
+                                </form>
                             <?php endif; ?>
                         <?php else: ?>
                             <span class="text-gray-300">—</span>

@@ -100,6 +100,7 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->get('/demands/create', [DemandController::class, 'create']);
     $router->post('/demands/preview', [DemandController::class, 'preview']);
     $router->post('/demands/bulk', [DemandController::class, 'bulkStore']);
+    $router->post('/demands/{id}/mark-paid', [DemandController::class, 'markPaid']);
     $router->post('/demands/{id}/delete', [DemandController::class, 'destroy']);
 
     // Receipts

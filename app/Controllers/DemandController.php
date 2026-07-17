@@ -183,6 +183,26 @@ final class DemandController extends Controller
         $this->redirect('/demands');
     }
 
+    /**
+     * Manually mark a demand as paid without recording a receipt
+     * (e.g. paid in kind, waived, or reconciled outside the system).
+     */
+    public function markPaid(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $demand = (new Demand())->findForAssociation((int) $params['id'], $assocId);
+        if ($demand === null) {
+            Response::notFound();
+        }
+        if ($demand['status'] === 'cancelled') {
+            $this->flash('error', 'A cancelled demand cannot be marked as paid.');
+        } else {
+            (new Demand())->update((int) $demand['id'], ['status' => 'paid']);
+            $this->flash('success', 'Demand marked as paid.');
+        }
+        $this->back('/demands');
+    }
+
     public function destroy(Request $request, array $params): void
     {
         $assocId = Auth::associationId();
@@ -193,7 +213,7 @@ final class DemandController extends Controller
         // Cancel rather than hard-delete to preserve history.
         (new Demand())->update((int) $demand['id'], ['status' => 'cancelled']);
         $this->flash('success', 'Demand cancelled.');
-        $this->redirect('/demands');
+        $this->back('/demands');
     }
 
     // ---- Shared validation ---------------------------------------------

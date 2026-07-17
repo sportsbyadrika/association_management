@@ -63,18 +63,38 @@ final class ReceiptController extends Controller
             $returnLedger = (int) $request->input('return_ledger', 0);
         }
 
+        $incomeHeads = (new Master('income-heads'))->activeForAssociation($assocId);
+
+        // Auto-select the income head that matches the demand's purpose
+        // (e.g. a project demand -> "Project Contribution").
+        $selectedIncomeHead = (int) $request->input('income_head_id', 0);
+        if ($demand !== null && $selectedIncomeHead === 0) {
+            $wanted = match ($demand['purpose']) {
+                'project'      => ['project contribution', 'project'],
+                'subscription' => ['subscription'],
+                default        => [],
+            };
+            foreach ($incomeHeads as $h) {
+                if (in_array(mb_strtolower(trim((string) $h['name'])), $wanted, true)) {
+                    $selectedIncomeHead = (int) $h['id'];
+                    break;
+                }
+            }
+        }
+
         $this->view('receipts.form', [
-            'title'           => 'Record Receipt',
-            'members'         => (new Member())->options($assocId),
-            'incomeHeads'     => (new Master('income-heads'))->activeForAssociation($assocId),
-            'projects'        => (new Project())->options($assocId),
-            'bankAccounts'    => (new BankAccount())->options($assocId),
-            'selectedMember'  => $selectedMember,
-            'selectedProject' => $selectedProject,
-            'demand'          => $demand,
-            'demandId'        => $demandId,
-            'prefillAmount'   => $prefillAmount,
-            'returnLedger'    => $returnLedger,
+            'title'              => 'Record Receipt',
+            'members'            => (new Member())->options($assocId),
+            'incomeHeads'        => $incomeHeads,
+            'projects'           => (new Project())->options($assocId),
+            'bankAccounts'       => (new BankAccount())->options($assocId),
+            'selectedMember'     => $selectedMember,
+            'selectedProject'    => $selectedProject,
+            'selectedIncomeHead' => $selectedIncomeHead,
+            'demand'             => $demand,
+            'demandId'           => $demandId,
+            'prefillAmount'      => $prefillAmount,
+            'returnLedger'       => $returnLedger,
         ]);
         Session::clearFormState();
     }

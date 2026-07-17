@@ -26,10 +26,21 @@ final class DashboardController extends Controller
             'receipts'     => (float) $db->fetchColumn('SELECT COALESCE(SUM(amount),0) FROM receipts WHERE association_id = ?', [$assocId]),
             'expenditures' => (new Expenditure())->totalForAssociation($assocId),
             'projects'     => (int) $db->fetchColumn("SELECT COUNT(*) FROM projects WHERE association_id = ? AND status IN ('planned','active')", [$assocId]),
+            // Outstanding = non-cancelled demands − receipts − amounts settled
+            // via "mark paid" (paid demands not covered by a receipt).
             'outstanding'  => (float) $db->fetchColumn(
                 "SELECT COALESCE(SUM(amount),0) FROM demands WHERE association_id = ? AND status <> 'cancelled'",
                 [$assocId]
-            ) - (float) $db->fetchColumn('SELECT COALESCE(SUM(amount),0) FROM receipts WHERE association_id = ?', [$assocId]),
+            )
+            - (float) $db->fetchColumn('SELECT COALESCE(SUM(amount),0) FROM receipts WHERE association_id = ?', [$assocId])
+            - (float) $db->fetchColumn(
+                "SELECT COALESCE(SUM(GREATEST(d.amount - COALESCE(r.paid,0), 0)),0)
+                 FROM demands d
+                 LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
+                    ON r.demand_id = d.id
+                 WHERE d.association_id = ? AND d.status = 'paid'",
+                [$assocId, $assocId]
+            ),
         ];
 
         $recentReceipts = (new Receipt())->paginateForAssociation($assocId, 1, 5)['data'];
