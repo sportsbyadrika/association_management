@@ -24,8 +24,10 @@ final class MemberController extends Controller
         $sort = (string) $request->input('sort', 'name');
         $dir = (string) $request->input('dir', 'asc');
         $page = (int) $request->input('page', 1);
+        $typeId = (int) $request->input('type', 0);
+        $typeId = $typeId > 0 ? $typeId : null;
 
-        $result = (new Member())->paginateForAssociation($assocId, $search, $sort, $dir, $page, 15);
+        $result = (new Member())->paginateForAssociation($assocId, $search, $sort, $dir, $page, 15, $typeId);
 
         $this->view('members.index', [
             'title'    => 'Members',
@@ -34,6 +36,8 @@ final class MemberController extends Controller
             'search'   => $search,
             'sort'     => $sort,
             'dir'      => $dir,
+            'memberTypes' => $this->memberTypes(),
+            'typeId'   => $typeId,
         ]);
         Session::clearFormState();
     }
