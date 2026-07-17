@@ -15,17 +15,33 @@ final class Demand extends Model
         'due_date', 'status', 'remarks', 'created_by',
     ];
 
-    /** @return list<array<string,mixed>> */
-    public function paginateForAssociation(int $associationId, int $page = 1, int $perPage = 20): array
+    /**
+     * @return array{data:list<array<string,mixed>>,total:int,page:int,perPage:int,pages:int}
+     */
+    public function paginateForAssociation(int $associationId, string $search = '', ?string $fyStart = null, ?string $fyEnd = null, int $page = 1, int $perPage = 20): array
     {
-        $base = "SELECT d.*, m.name AS member_name, p.name AS project_name
+        $where = 'WHERE d.association_id = ?';
+        $params = [$associationId];
+
+        if ($search !== '') {
+            $where .= ' AND (m.member_number LIKE ? OR m.name LIKE ? OR m.mobile LIKE ?)';
+            $like = '%' . $search . '%';
+            array_push($params, $like, $like, $like);
+        }
+        if ($fyStart !== null && $fyEnd !== null) {
+            // Filter by the demand's due date, falling back to when it was raised.
+            $where .= ' AND COALESCE(d.due_date, DATE(d.created_at)) BETWEEN ? AND ?';
+            array_push($params, $fyStart, $fyEnd);
+        }
+
+        $base = "SELECT d.*, m.name AS member_name, m.member_number, m.mobile, p.name AS project_name
                  FROM demands d
                  JOIN members m ON m.id = d.member_id
                  LEFT JOIN projects p ON p.id = d.project_id
-                 WHERE d.association_id = ?
+                 {$where}
                  ORDER BY d.created_at DESC";
-        $count = 'SELECT COUNT(*) FROM demands d WHERE d.association_id = ?';
-        return $this->paginateQuery($base, $count, [$associationId], $page, $perPage);
+        $count = "SELECT COUNT(*) FROM demands d JOIN members m ON m.id = d.member_id {$where}";
+        return $this->paginateQuery($base, $count, $params, $page, $perPage);
     }
 
     /** @return list<array<string,mixed>> */

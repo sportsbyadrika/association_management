@@ -1,4 +1,8 @@
-<?php $this->layout('layouts.app'); /** @var list $demands */ /** @var array $paginator */ ?>
+<?php $this->layout('layouts.app');
+/** @var list $demands */ /** @var array $paginator */ /** @var list $financialYears */
+/** @var array|null $selectedFy */ /** @var string $search */ /** @var mixed $fyParam */
+$currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (string) ($selectedFy['id'] ?? '');
+?>
 
 <div class="mb-6 flex items-center justify-between">
     <div>
@@ -8,14 +12,45 @@
     <a href="<?= e(url('/demands/create')) ?>" class="btn-primary">+ Raise Demand</a>
 </div>
 
-<div class="card overflow-hidden">
+<div class="card">
+    <div class="border-b border-gray-100 p-4">
+        <form method="get" action="<?= e(url('/demands')) ?>" class="flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[16rem]">
+                <label for="q" class="form-label">Search</label>
+                <input type="text" id="q" name="q" value="<?= e($search) ?>" placeholder="Member no, name or mobile…" class="form-input">
+            </div>
+            <div>
+                <label for="fy" class="form-label">Financial year</label>
+                <select id="fy" name="fy" class="form-select">
+                    <?php if ($financialYears === []): ?>
+                        <option value="all">All</option>
+                    <?php else: ?>
+                        <?php foreach ($financialYears as $fy): ?>
+                            <option value="<?= (int) $fy['id'] ?>" <?= $currentFyValue === (string) $fy['id'] ? 'selected' : '' ?>>
+                                <?= e($fy['label']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                        <option value="all" <?= (string) $fyParam === 'all' ? 'selected' : '' ?>>All years</option>
+                    <?php endif; ?>
+                </select>
+            </div>
+            <button type="submit" class="btn-primary">Filter</button>
+            <a href="<?= e(url('/demands')) ?>" class="btn-secondary">Reset</a>
+        </form>
+        <?php if ($financialYears === []): ?>
+            <p class="mt-2 text-xs text-amber-600">Tip: define financial years under Masters → Financial Year to filter demands by year.</p>
+        <?php endif; ?>
+    </div>
+
     <div class="overflow-x-auto">
         <table class="table">
-            <thead><tr><th>Member</th><th>Purpose</th><th>Project</th><th>Due</th><th class="text-right">Amount</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
+            <thead><tr><th>Member No.</th><th>Member</th><th>Mobile</th><th>Purpose</th><th>Project</th><th>Due</th><th class="text-right">Amount</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
             <tbody>
             <?php foreach ($demands as $d): ?>
                 <tr>
+                    <td class="text-gray-700"><?= e($d['member_number'] ?? '—') ?></td>
                     <td class="font-medium text-gray-900"><?= e($d['member_name']) ?></td>
+                    <td><?= e($d['mobile'] ?? '—') ?></td>
                     <td class="capitalize"><?= e($d['purpose']) ?></td>
                     <td><?= e($d['project_name'] ?? '—') ?></td>
                     <td><?= e(format_date($d['due_date'])) ?></td>
@@ -43,10 +78,16 @@
                 </tr>
             <?php endforeach; ?>
             <?php if ($demands === []): ?>
-                <tr><td colspan="7" class="text-center text-gray-400 py-8">No demands yet.</td></tr>
+                <tr><td colspan="9" class="text-center text-gray-400 py-8">No demands match your filters.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>
     </div>
-    <div class="p-4"><?php $baseUrl = url('/demands'); include dirname(__DIR__) . '/partials/pagination.php'; ?></div>
+    <div class="p-4">
+        <?php
+        $fyQ = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (string) ($selectedFy['id'] ?? '');
+        $baseUrl = url('/demands?q=' . urlencode($search) . '&fy=' . urlencode($fyQ));
+        include dirname(__DIR__) . '/partials/pagination.php';
+        ?>
+    </div>
 </div>

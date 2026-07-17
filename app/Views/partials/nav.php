@@ -7,50 +7,71 @@ $user = $currentUser ?? Auth::user();
 $role = $user['role'] ?? null;
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
-/** Build the role-dependent menu. */
+// Menu items: either ['type' => 'link', ...] or ['type' => 'dropdown', ...].
+$finance = [
+    'type'     => 'dropdown',
+    'label'    => 'Finance',
+    'id'       => 'financeMenu',
+    'prefixes' => ['/demands', '/receipts', '/expenditures'],
+    'items'    => [
+        ['Demands', '/demands'],
+        ['Receipts', '/receipts'],
+        ['Expenditure', '/expenditures'],
+    ],
+];
+
 $menu = [];
 if ($role === 'super_admin') {
     $menu = [
-        ['Associations', '/admin/associations', '/admin/associations'],
-        ['Association Admins', '/admin/admins', '/admin/admins'],
+        ['type' => 'link', 'label' => 'Associations', 'href' => '/admin/associations', 'prefix' => '/admin/associations'],
+        ['type' => 'link', 'label' => 'Association Admins', 'href' => '/admin/admins', 'prefix' => '/admin/admins'],
     ];
 } elseif ($role === 'association_admin') {
     $menu = [
-        ['Dashboard', '/dashboard', '/dashboard'],
-        ['Members', '/members', '/members'],
-        ['Demands', '/demands', '/demands'],
-        ['Receipts', '/receipts', '/receipts'],
-        ['Expenditure', '/expenditures', '/expenditures'],
-        ['Projects', '/projects', '/projects'],
-        ['Bank Accounts', '/bank-accounts', '/bank-accounts'],
-        ['Masters', '/masters/member-types', '/masters'],
-        ['Reports', '/reports', '/reports'],
+        ['type' => 'link', 'label' => 'Dashboard', 'href' => '/dashboard', 'prefix' => '/dashboard'],
+        ['type' => 'link', 'label' => 'Members', 'href' => '/members', 'prefix' => '/members'],
+        $finance,
+        ['type' => 'link', 'label' => 'Projects', 'href' => '/projects', 'prefix' => '/projects'],
+        ['type' => 'link', 'label' => 'Masters', 'href' => '/masters/member-types', 'prefix' => '/masters', 'extra' => ['/bank-accounts']],
+        ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
     ];
 } elseif ($role === 'association_staff') {
     $menu = [
-        ['Dashboard', '/dashboard', '/dashboard'],
-        ['Members', '/members', '/members'],
-        ['Demands', '/demands', '/demands'],
-        ['Receipts', '/receipts', '/receipts'],
-        ['Expenditure', '/expenditures', '/expenditures'],
-        ['Projects', '/projects', '/projects'],
-        ['Reports', '/reports', '/reports'],
+        ['type' => 'link', 'label' => 'Dashboard', 'href' => '/dashboard', 'prefix' => '/dashboard'],
+        ['type' => 'link', 'label' => 'Members', 'href' => '/members', 'prefix' => '/members'],
+        $finance,
+        ['type' => 'link', 'label' => 'Projects', 'href' => '/projects', 'prefix' => '/projects'],
+        ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
     ];
 } elseif ($role === 'member') {
     $menu = [
-        ['My Profile', '/member/profile', '/member/profile'],
-        ['My Ledger', '/member/ledger', '/member/ledger'],
+        ['type' => 'link', 'label' => 'My Profile', 'href' => '/member/profile', 'prefix' => '/member/profile'],
+        ['type' => 'link', 'label' => 'My Ledger', 'href' => '/member/ledger', 'prefix' => '/member/ledger'],
     ];
 }
 
-$isActive = static function (string $prefix) use ($path): bool {
-    if ($prefix === '/dashboard' || $prefix === '/') {
+$linkActive = static function (array $item) use ($path): bool {
+    $prefix = $item['prefix'] ?? '';
+    if ($prefix === '/dashboard') {
         return $path === $prefix;
     }
-    return str_starts_with($path, $prefix);
+    $prefixes = array_merge([$prefix], $item['extra'] ?? []);
+    foreach ($prefixes as $p) {
+        if ($p !== '' && ($path === $p || str_starts_with($path, $p . '/') || str_starts_with($path, $p))) {
+            return true;
+        }
+    }
+    return false;
+};
+$dropActive = static function (array $item) use ($path): bool {
+    foreach ($item['prefixes'] ?? [] as $p) {
+        if (str_starts_with($path, $p)) {
+            return true;
+        }
+    }
+    return false;
 };
 
-// Branding: association logo + name, or Habitract for super admin.
 $brandName = 'Habitract';
 $logoPath = null;
 if ($role !== 'super_admin' && isset($GLOBALS['__association'])) {
@@ -75,11 +96,26 @@ if ($role !== 'super_admin' && isset($GLOBALS['__association'])) {
 
             <!-- Desktop menu -->
             <div class="hidden md:flex md:items-center md:gap-1 flex-1 justify-center">
-                <?php foreach ($menu as [$label, $href, $prefix]): ?>
-                    <a href="<?= e(url($href)) ?>"
-                       class="nav-link <?= $isActive($prefix) ? 'bg-brand-800 text-white' : 'text-brand-100 hover:bg-brand-600 hover:text-white' ?>">
-                        <?= e($label) ?>
-                    </a>
+                <?php foreach ($menu as $item): ?>
+                    <?php if ($item['type'] === 'link'): ?>
+                        <a href="<?= e(url($item['href'])) ?>"
+                           class="nav-link <?= $linkActive($item) ? 'bg-brand-800 text-white' : 'text-brand-100 hover:bg-brand-600 hover:text-white' ?>">
+                            <?= e($item['label']) ?>
+                        </a>
+                    <?php else: ?>
+                        <div class="relative">
+                            <button type="button" data-dropdown-toggle="#<?= e($item['id']) ?>"
+                                    class="nav-link <?= $dropActive($item) ? 'bg-brand-800 text-white' : 'text-brand-100 hover:bg-brand-600 hover:text-white' ?>">
+                                <?= e($item['label']) ?>
+                                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd"/></svg>
+                            </button>
+                            <div id="<?= e($item['id']) ?>" data-dropdown class="hidden absolute left-0 z-30 mt-2 w-44 rounded-lg bg-white py-1 text-gray-700 shadow-lg ring-1 ring-black/5">
+                                <?php foreach ($item['items'] as [$label, $href]): ?>
+                                    <a href="<?= e(url($href)) ?>" class="block px-4 py-2 text-sm hover:bg-gray-50 <?= str_starts_with($path, $href) ? 'font-semibold text-brand-700' : '' ?>"><?= e($label) ?></a>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 <?php endforeach; ?>
             </div>
 
@@ -118,11 +154,21 @@ if ($role !== 'super_admin' && isset($GLOBALS['__association'])) {
     <!-- Mobile menu -->
     <div class="hidden md:hidden border-t border-brand-600" data-nav-menu>
         <div class="space-y-1 px-2 pb-3 pt-2">
-            <?php foreach ($menu as [$label, $href, $prefix]): ?>
-                <a href="<?= e(url($href)) ?>"
-                   class="block rounded-md px-3 py-2 text-base font-medium <?= $isActive($prefix) ? 'bg-brand-800 text-white' : 'text-brand-100 hover:bg-brand-600 hover:text-white' ?>">
-                    <?= e($label) ?>
-                </a>
+            <?php foreach ($menu as $item): ?>
+                <?php if ($item['type'] === 'link'): ?>
+                    <a href="<?= e(url($item['href'])) ?>"
+                       class="block rounded-md px-3 py-2 text-base font-medium <?= $linkActive($item) ? 'bg-brand-800 text-white' : 'text-brand-100 hover:bg-brand-600 hover:text-white' ?>">
+                        <?= e($item['label']) ?>
+                    </a>
+                <?php else: ?>
+                    <p class="px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-brand-200"><?= e($item['label']) ?></p>
+                    <?php foreach ($item['items'] as [$label, $href]): ?>
+                        <a href="<?= e(url($href)) ?>"
+                           class="block rounded-md px-3 py-2 pl-6 text-base font-medium <?= str_starts_with($path, $href) ? 'bg-brand-800 text-white' : 'text-brand-100 hover:bg-brand-600 hover:text-white' ?>">
+                            <?= e($label) ?>
+                        </a>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             <?php endforeach; ?>
             <div class="mt-3 border-t border-brand-600 pt-3">
                 <p class="px-3 text-sm font-medium"><?= e($user['name'] ?? '') ?> · <span class="text-brand-100"><?= e(role_label($role)) ?></span></p>

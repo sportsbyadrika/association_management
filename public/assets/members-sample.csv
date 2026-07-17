@@ -1,0 +1,3 @@
+member_number,name,member_type,age,gender,mobile,whatsapp,email,family_members_count,occupation,joined_on
+M001,Anil Kumar,Regular,42,male,9800000001,9800000001,anil@example.com,4,Teacher,2025-04-01
+M002,Sunita Rao,Life,38,female,9800000002,,sunita@example.com,3,Doctor,2025-04-01

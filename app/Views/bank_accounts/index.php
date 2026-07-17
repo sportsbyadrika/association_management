@@ -1,8 +1,11 @@
 <?php $this->layout('layouts.app'); /** @var list $accounts */ ?>
 
+<h1 class="mb-6 text-2xl font-bold text-gray-900">Masters</h1>
+<?php include dirname(__DIR__) . '/partials/masters_tabs.php'; ?>
+
 <div class="mb-6 flex items-center justify-between">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">Bank Accounts</h1>
+        <h2 class="text-lg font-semibold text-gray-900">Bank Accounts</h2>
         <p class="mt-1 text-sm text-gray-500">Association and treasurer accounts with live balances.</p>
     </div>
     <a href="<?= e(url('/bank-accounts/create')) ?>" class="btn-primary">+ Add Account</a>

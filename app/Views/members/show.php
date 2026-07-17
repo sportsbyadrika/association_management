@@ -22,6 +22,7 @@
         <dl class="mt-6 space-y-3 text-sm">
             <?php
             $fields = [
+                'Member No.' => $member['member_number'] ?? '—',
                 'Age' => $member['age'] ?? '—',
                 'Gender' => ucfirst((string) ($member['gender'] ?? '—')),
                 'Mobile' => $member['mobile'] ?? '—',

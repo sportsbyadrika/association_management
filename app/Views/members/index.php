@@ -10,13 +10,18 @@ $sortLink = static function (string $col) use ($search, $sort, $dir): string {
         <h1 class="text-2xl font-bold text-gray-900">Members</h1>
         <p class="mt-1 text-sm text-gray-500">Your association's member directory.</p>
     </div>
-    <a href="<?= e(url('/members/create')) ?>" class="btn-primary">+ Add Member</a>
+    <div class="flex gap-2">
+        <?php if (\App\Core\Auth::is('association_admin')): ?>
+            <a href="<?= e(url('/members/bulk')) ?>" class="btn-secondary">Bulk upload</a>
+        <?php endif; ?>
+        <a href="<?= e(url('/members/create')) ?>" class="btn-primary">+ Add Member</a>
+    </div>
 </div>
 
 <div class="card">
     <div class="border-b border-gray-100 p-4">
         <form method="get" action="<?= e(url('/members')) ?>" class="flex gap-2">
-            <input type="text" name="q" value="<?= e($search) ?>" placeholder="Search name, mobile or email…" class="form-input max-w-sm">
+            <input type="text" name="q" value="<?= e($search) ?>" placeholder="Search member no, name, mobile or email…" class="form-input max-w-sm">
             <button type="submit" class="btn-secondary">Search</button>
             <?php if ($search !== ''): ?><a href="<?= e(url('/members')) ?>" class="btn-secondary">Clear</a><?php endif; ?>
         </form>
@@ -25,6 +30,7 @@ $sortLink = static function (string $col) use ($search, $sort, $dir): string {
         <table class="table">
             <thead>
                 <tr>
+                    <th>Member No.</th>
                     <th><a href="<?= e($sortLink('name')) ?>" class="hover:text-gray-700">Name</a></th>
                     <th>Type</th>
                     <th><a href="<?= e($sortLink('age')) ?>" class="hover:text-gray-700">Age</a></th>
@@ -37,6 +43,7 @@ $sortLink = static function (string $col) use ($search, $sort, $dir): string {
             <tbody>
             <?php foreach ($members as $m): ?>
                 <tr>
+                    <td class="font-medium text-gray-700"><?= e($m['member_number'] ?? '—') ?></td>
                     <td>
                         <div class="flex items-center gap-3">
                             <?php if (!empty($m['photo_path'])): ?>
@@ -66,7 +73,7 @@ $sortLink = static function (string $col) use ($search, $sort, $dir): string {
                 </tr>
             <?php endforeach; ?>
             <?php if ($members === []): ?>
-                <tr><td colspan="7" class="text-center text-gray-400 py-8">No members found.</td></tr>
+                <tr><td colspan="8" class="text-center text-gray-400 py-8">No members found.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>

@@ -50,20 +50,19 @@ final class Env
             $key = trim($key);
             $value = trim($value);
 
-            // Strip trailing inline comments for unquoted values.
-            if ($value !== '' && $value[0] !== '"' && $value[0] !== "'") {
+            if ($value !== '' && ($value[0] === '"' || $value[0] === "'")) {
+                // Quoted value: take everything up to the matching closing
+                // quote and discard any trailing content (e.g. inline comments).
+                $quote = $value[0];
+                $end = strpos($value, $quote, 1);
+                $value = $end !== false
+                    ? substr($value, 1, $end - 1)
+                    : ltrim($value, $quote);
+            } else {
+                // Unquoted value: strip a trailing inline comment.
                 $hashPos = strpos($value, ' #');
                 if ($hashPos !== false) {
                     $value = rtrim(substr($value, 0, $hashPos));
-                }
-            }
-
-            // Strip surrounding quotes.
-            if (strlen($value) >= 2) {
-                $first = $value[0];
-                $last = $value[strlen($value) - 1];
-                if (($first === '"' && $last === '"') || ($first === "'" && $last === "'")) {
-                    $value = substr($value, 1, -1);
                 }
             }
 
