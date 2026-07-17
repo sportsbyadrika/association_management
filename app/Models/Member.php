@@ -11,10 +11,23 @@ final class Member extends Model
     protected string $table = 'members';
 
     protected array $fillable = [
-        'association_id', 'member_type_id', 'name', 'age', 'gender', 'address',
-        'mobile', 'whatsapp', 'email', 'family_members_count', 'occupation',
-        'joined_on', 'photo_path', 'notes', 'is_active',
+        'association_id', 'member_number', 'member_type_id', 'name', 'age',
+        'gender', 'address', 'mobile', 'whatsapp', 'email',
+        'family_members_count', 'occupation', 'joined_on', 'photo_path',
+        'notes', 'is_active',
     ];
+
+    /** Whether a member number is already used within the association. */
+    public function memberNumberExists(int $associationId, string $memberNumber, ?int $ignoreId = null): bool
+    {
+        $sql = 'SELECT COUNT(*) FROM members WHERE association_id = ? AND member_number = ?';
+        $params = [$associationId, $memberNumber];
+        if ($ignoreId !== null) {
+            $sql .= ' AND id <> ?';
+            $params[] = $ignoreId;
+        }
+        return (int) $this->db->fetchColumn($sql, $params) > 0;
+    }
 
     /**
      * Paginated, searchable, sortable listing scoped to an association.
@@ -29,9 +42,9 @@ final class Member extends Model
         $where = 'WHERE m.association_id = ?';
         $bindings = [$associationId];
         if ($search !== '') {
-            $where .= ' AND (m.name LIKE ? OR m.mobile LIKE ? OR m.email LIKE ?)';
+            $where .= ' AND (m.member_number LIKE ? OR m.name LIKE ? OR m.mobile LIKE ? OR m.email LIKE ?)';
             $like = '%' . $search . '%';
-            array_push($bindings, $like, $like, $like);
+            array_push($bindings, $like, $like, $like, $like);
         }
 
         $base = "SELECT m.*, mt.name AS member_type_name

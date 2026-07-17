@@ -5,16 +5,7 @@
     <a href="<?= e(url('/masters/' . $key . '/create')) ?>" class="btn-primary">+ Add <?= e($label) ?></a>
 </div>
 
-<!-- Master tabs -->
-<div class="mb-6 flex flex-wrap gap-2 border-b border-gray-200">
-    <?php foreach ($tabs as $tabKey => $tabLabel): ?>
-        <a href="<?= e(url('/masters/' . $tabKey)) ?>"
-           class="-mb-px border-b-2 px-3 py-2 text-sm font-medium <?= $tabKey === $key ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700' ?>">
-            <?= e($tabLabel) ?>
-        </a>
-    <?php endforeach; ?>
-    <a href="<?= e(url('/bank-accounts')) ?>" class="-mb-px border-b-2 border-transparent px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">Bank Account</a>
-</div>
+<?php include dirname(__DIR__) . '/partials/masters_tabs.php'; ?>
 
 <div class="card overflow-hidden">
     <div class="overflow-x-auto">

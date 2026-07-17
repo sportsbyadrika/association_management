@@ -12,6 +12,11 @@ $selGender = static fn ($g) => (string) (old('gender') !== '' ? old('gender') : 
     <form method="post" action="<?= e($action) ?>" enctype="multipart/form-data" class="space-y-5" novalidate>
         <?= csrf_field() ?>
         <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+                <label for="member_number" class="form-label">Member number *</label>
+                <input type="text" id="member_number" name="member_number" value="<?= $val('member_number') ?>" required autofocus maxlength="50" class="form-input">
+                <?php if ($m = error_for('member_number')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
+            </div>
             <div class="lg:col-span-2">
                 <label for="name" class="form-label">Full name *</label>
                 <input type="text" id="name" name="name" value="<?= $val('name') ?>" required class="form-input">

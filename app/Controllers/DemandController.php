@@ -20,12 +20,44 @@ final class DemandController extends Controller
     {
         $assocId = Auth::associationId();
         $page = (int) $request->input('page', 1);
-        $result = (new Demand())->paginateForAssociation($assocId, $page, 20);
+        $search = trim((string) $request->input('q', ''));
+
+        $fyModel = new \App\Models\FinancialYear();
+        $financialYears = $fyModel->allForAssociationOrdered($assocId);
+
+        // Resolve the selected financial year. Default to the current one.
+        $fyParam = $request->input('fy');
+        $selectedFy = null;
+        if ($fyParam === 'all') {
+            $selectedFy = null;
+        } elseif ($fyParam !== null && $fyParam !== '') {
+            foreach ($financialYears as $fy) {
+                if ((int) $fy['id'] === (int) $fyParam) {
+                    $selectedFy = $fy;
+                    break;
+                }
+            }
+        } else {
+            $selectedFy = $fyModel->current($assocId); // default: current FY
+        }
+
+        $result = (new Demand())->paginateForAssociation(
+            $assocId,
+            $search,
+            $selectedFy['start_date'] ?? null,
+            $selectedFy['end_date'] ?? null,
+            $page,
+            20
+        );
 
         $this->view('demands.index', [
-            'title'     => 'Demands',
-            'demands'   => $result['data'],
-            'paginator' => $result,
+            'title'          => 'Demands',
+            'demands'        => $result['data'],
+            'paginator'      => $result,
+            'search'         => $search,
+            'financialYears' => $financialYears,
+            'selectedFy'     => $selectedFy,
+            'fyParam'        => $fyParam,
         ]);
         Session::clearFormState();
     }

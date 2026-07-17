@@ -14,6 +14,7 @@ use App\Controllers\BankAccountController;
 use App\Controllers\DashboardController;
 use App\Controllers\DemandController;
 use App\Controllers\ExpenditureController;
+use App\Controllers\FinancialYearController;
 use App\Controllers\HomeController;
 use App\Controllers\MasterController;
 use App\Controllers\MemberController;
@@ -81,6 +82,10 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     // Members
     $router->get('/members', [MemberController::class, 'index']);
     $router->get('/members/create', [MemberController::class, 'create']);
+    // Bulk upload (association_admin only — enforced in the controller).
+    // Registered before /members/{id} so "bulk" is not treated as an id.
+    $router->get('/members/bulk', [MemberController::class, 'bulkForm']);
+    $router->post('/members/bulk', [MemberController::class, 'bulkUpload']);
     $router->post('/members', [MemberController::class, 'store']);
     $router->get('/members/{id}', [MemberController::class, 'show']);
     $router->get('/members/{id}/edit', [MemberController::class, 'edit']);
@@ -118,6 +123,15 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
 
 // ---- Association Admin only (masters, bank accounts, reports) -------------
 $router->group(['auth' => true, 'roles' => ['association_admin']], function ($router): void {
+    // Financial years master (registered before the generic {master} routes
+    // so "financial-years" is not captured as a generic master key).
+    $router->get('/masters/financial-years', [FinancialYearController::class, 'index']);
+    $router->get('/masters/financial-years/create', [FinancialYearController::class, 'create']);
+    $router->post('/masters/financial-years', [FinancialYearController::class, 'store']);
+    $router->get('/masters/financial-years/{id}/edit', [FinancialYearController::class, 'edit']);
+    $router->post('/masters/financial-years/{id}', [FinancialYearController::class, 'update']);
+    $router->post('/masters/financial-years/{id}/toggle', [FinancialYearController::class, 'toggle']);
+
     // Masters — one generic controller keyed by {master} segment.
     $router->get('/masters/{master}', [MasterController::class, 'index']);
     $router->get('/masters/{master}/create', [MasterController::class, 'create']);
