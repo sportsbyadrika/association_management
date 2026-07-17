@@ -51,7 +51,7 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
                     <td class="text-gray-700"><?= e($d['member_number'] ?? '—') ?></td>
                     <td class="font-medium text-gray-900"><?= e($d['member_name']) ?></td>
                     <td><?= e($d['mobile'] ?? '—') ?></td>
-                    <td class="capitalize"><?= e($d['purpose']) ?></td>
+                    <td><?= e($d['purpose_name'] ?? '—') ?></td>
                     <td><?= e($d['project_name'] ?? '—') ?></td>
                     <td><?= e(format_date($d['due_date'])) ?></td>
                     <td class="text-right font-medium">₹ <?= money($d['amount']) ?></td>

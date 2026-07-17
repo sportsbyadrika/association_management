@@ -13,6 +13,7 @@ use App\Controllers\AuthController;
 use App\Controllers\BankAccountController;
 use App\Controllers\DashboardController;
 use App\Controllers\DemandController;
+use App\Controllers\DemandPurposeController;
 use App\Controllers\ExpenditureController;
 use App\Controllers\FinancialYearController;
 use App\Controllers\HomeController;
@@ -137,6 +138,15 @@ $router->group(['auth' => true, 'roles' => ['association_admin']], function ($ro
     $router->get('/masters/financial-years/{id}/edit', [FinancialYearController::class, 'edit']);
     $router->post('/masters/financial-years/{id}', [FinancialYearController::class, 'update']);
     $router->post('/masters/financial-years/{id}/toggle', [FinancialYearController::class, 'toggle']);
+
+    // Demand purposes master (mandatory/optional type). Registered before the
+    // generic {master} routes.
+    $router->get('/masters/demand-purposes', [DemandPurposeController::class, 'index']);
+    $router->get('/masters/demand-purposes/create', [DemandPurposeController::class, 'create']);
+    $router->post('/masters/demand-purposes', [DemandPurposeController::class, 'store']);
+    $router->get('/masters/demand-purposes/{id}/edit', [DemandPurposeController::class, 'edit']);
+    $router->post('/masters/demand-purposes/{id}', [DemandPurposeController::class, 'update']);
+    $router->post('/masters/demand-purposes/{id}/toggle', [DemandPurposeController::class, 'toggle']);
 
     // Masters — one generic controller keyed by {master} segment.
     $router->get('/masters/{master}', [MasterController::class, 'index']);

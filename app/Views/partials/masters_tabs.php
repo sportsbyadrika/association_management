@@ -11,6 +11,7 @@ foreach (Master::LABELS as $key => $label) {
 }
 $tabs[] = ['Bank Account', '/bank-accounts', '/bank-accounts'];
 $tabs[] = ['Financial Year', '/masters/financial-years', '/masters/financial-years'];
+$tabs[] = ['Demand Purpose', '/masters/demand-purposes', '/masters/demand-purposes'];
 
 $isActive = static function (string $prefix) use ($path): bool {
     return $path === $prefix || str_starts_with($path, $prefix . '/');

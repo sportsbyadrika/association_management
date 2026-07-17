@@ -12,6 +12,7 @@ use App\Core\Session;
 use App\Core\Validator;
 use App\Models\BankAccount;
 use App\Models\Demand;
+use App\Models\DemandPurpose;
 use App\Models\Master;
 use App\Models\Member;
 use App\Models\Project;
@@ -65,21 +66,31 @@ final class ReceiptController extends Controller
 
         $incomeHeads = (new Master('income-heads'))->activeForAssociation($assocId);
 
-        // Auto-select the income head that matches the demand's purpose
-        // (e.g. a project demand -> "Project Contribution").
+        // Auto-select the income head that matches the demand: a project-linked
+        // demand -> "Project Contribution"; otherwise match the purpose name.
         $selectedIncomeHead = (int) $request->input('income_head_id', 0);
         if ($demand !== null && $selectedIncomeHead === 0) {
-            $wanted = match ($demand['purpose']) {
-                'project'      => ['project contribution', 'project'],
-                'subscription' => ['subscription'],
-                default        => [],
-            };
+            $wanted = [];
+            if (!empty($demand['project_id'])) {
+                $wanted = ['project contribution', 'project'];
+            } else {
+                $purpose = (new DemandPurpose())->find((int) ($demand['demand_purpose_id'] ?? 0));
+                if ($purpose !== null) {
+                    $wanted[] = mb_strtolower(trim((string) $purpose['name']));
+                }
+            }
             foreach ($incomeHeads as $h) {
-                if (in_array(mb_strtolower(trim((string) $h['name'])), $wanted, true)) {
+                if ($wanted !== [] && in_array(mb_strtolower(trim((string) $h['name'])), $wanted, true)) {
                     $selectedIncomeHead = (int) $h['id'];
                     break;
                 }
             }
+        }
+
+        $demandPurposeName = null;
+        if ($demand !== null) {
+            $dp = (new DemandPurpose())->find((int) ($demand['demand_purpose_id'] ?? 0));
+            $demandPurposeName = $dp['name'] ?? null;
         }
 
         $this->view('receipts.form', [
@@ -87,6 +98,7 @@ final class ReceiptController extends Controller
             'members'            => (new Member())->options($assocId),
             'incomeHeads'        => $incomeHeads,
             'projects'           => (new Project())->options($assocId),
+            'demandPurposeName'  => $demandPurposeName,
             'bankAccounts'       => (new BankAccount())->options($assocId),
             'selectedMember'     => $selectedMember,
             'selectedProject'    => $selectedProject,

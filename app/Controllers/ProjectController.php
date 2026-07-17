@@ -90,10 +90,12 @@ final class ProjectController extends Controller
         $spent = $model->spent((int) $project['id']);
         $breakdown = $this->demandBreakdown((int) $project['id'], $assocId);
 
-        $columns = ['Member No.', 'Name', 'Demand', 'Collected', 'Balance', 'Status', 'Received On'];
+        $columns = ['Sl No.', 'Member No.', 'Name', 'Demand', 'Collected', 'Balance', 'Status', 'Received On'];
         $rows = [];
+        $sl = 0;
         foreach ($breakdown['all'] as $e) {
             $rows[] = [
+                ++$sl,
                 $e['member_number'] ?: '-',
                 $e['name'],
                 number_format($e['amount'], 2),
