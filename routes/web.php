@@ -172,6 +172,7 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->get('/reports/member-ledger', [ReportController::class, 'memberLedger']);
     $router->get('/reports/income', [ReportController::class, 'income']);
     $router->get('/reports/expenditure', [ReportController::class, 'expenditure']);
+    $router->get('/reports/purpose-ledger', [ReportController::class, 'purposeLedger']);
 });
 
 // ---- Member self-service -------------------------------------------------

@@ -9,7 +9,10 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Models\Association;
+use App\Models\Demand;
+use App\Models\DemandPurpose;
 use App\Models\Expenditure;
+use App\Models\FinancialYear;
 use App\Models\Member;
 use App\Models\Receipt;
 use App\Services\CsvExporter;
@@ -138,6 +141,108 @@ final class ReportController extends Controller
             'from'   => $from,
             'to'     => $to,
         ]);
+    }
+
+    // ---- 5. Purpose (e.g. Subscription) ledger -------------------------
+
+    public function purposeLedger(Request $request): void
+    {
+        $assocId = Auth::associationId();
+        $purposes = (new DemandPurpose())->allForAssociationOrdered($assocId);
+
+        // Selected purpose — default to the first mandatory (usually
+        // Subscription), else the first defined purpose.
+        $purposeId = (int) $request->input('purpose_id', 0);
+        if ($purposeId <= 0 || !$this->purposeExists($purposes, $purposeId)) {
+            $default = null;
+            foreach ($purposes as $p) {
+                if ($p['type'] === 'mandatory') { $default = $p; break; }
+            }
+            $default = $default ?? ($purposes[0] ?? null);
+            $purposeId = (int) ($default['id'] ?? 0);
+        }
+        $selectedPurpose = null;
+        foreach ($purposes as $p) {
+            if ((int) $p['id'] === $purposeId) { $selectedPurpose = $p; break; }
+        }
+
+        // Financial year filter (default the current one; 'all' = no bound).
+        $fyModel = new FinancialYear();
+        $financialYears = $fyModel->allForAssociationOrdered($assocId);
+        $fyParam = $request->input('fy');
+        $selectedFy = null;
+        if ($fyParam === 'all') {
+            $selectedFy = null;
+        } elseif ($fyParam !== null && $fyParam !== '') {
+            foreach ($financialYears as $fy) {
+                if ((int) $fy['id'] === (int) $fyParam) { $selectedFy = $fy; break; }
+            }
+        } else {
+            $selectedFy = $fyModel->current($assocId);
+        }
+
+        $rows = $purposeId > 0
+            ? (new Demand())->purposeLedger($assocId, $purposeId, $selectedFy['start_date'] ?? null, $selectedFy['end_date'] ?? null)
+            : [];
+
+        $totals = ['demand' => 0.0, 'collected' => 0.0, 'balance' => 0.0];
+        foreach ($rows as $r) {
+            $totals['demand'] += (float) $r['total_demand'];
+            $totals['collected'] += (float) $r['collected'];
+            $totals['balance'] += (float) $r['balance'];
+        }
+
+        $format = (string) $request->input('format', '');
+        if ($format === 'csv' || $format === 'pdf') {
+            $columns = ['Sl No.', 'Member No.', 'Name', 'Total Demand', 'Collected', 'Balance', 'Last Received'];
+            $data = [];
+            $sl = 0;
+            foreach ($rows as $r) {
+                $data[] = [
+                    ++$sl,
+                    $r['member_number'] ?: '-',
+                    $r['name'],
+                    number_format((float) $r['total_demand'], 2),
+                    number_format((float) $r['collected'], 2),
+                    number_format((float) $r['balance'], 2),
+                    $r['last_received'] ? format_date($r['last_received']) : '-',
+                ];
+            }
+            $meta = [
+                'Purpose'    => $selectedPurpose['name'] ?? '-',
+                'Date range' => $selectedFy ? $selectedFy['label'] : 'All time',
+            ];
+            $summary = [
+                'Total demand' => number_format($totals['demand'], 2),
+                'Collected'    => number_format($totals['collected'], 2),
+                'Balance'      => number_format($totals['balance'], 2),
+            ];
+            $this->emit($request, 'ledger-' . strtolower(str_replace(' ', '-', (string) ($selectedPurpose['name'] ?? 'purpose'))),
+                (($selectedPurpose['name'] ?? 'Purpose') . ' Ledger'), $columns, $data, $meta, $summary);
+        }
+
+        $this->view('reports.purpose_ledger', [
+            'title'          => 'Purpose Ledger',
+            'purposes'       => $purposes,
+            'purposeId'      => $purposeId,
+            'selectedPurpose' => $selectedPurpose,
+            'financialYears' => $financialYears,
+            'selectedFy'     => $selectedFy,
+            'fyParam'        => $fyParam,
+            'rows'           => $rows,
+            'totals'         => $totals,
+        ]);
+    }
+
+    /** @param list<array<string,mixed>> $purposes */
+    private function purposeExists(array $purposes, int $id): bool
+    {
+        foreach ($purposes as $p) {
+            if ((int) $p['id'] === $id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---- Shared render/emit --------------------------------------------

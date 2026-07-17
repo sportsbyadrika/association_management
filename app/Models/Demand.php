@@ -89,6 +89,44 @@ final class Demand extends Model
     }
 
     /**
+     * Per-member ledger for a single demand purpose: total demanded, collected
+     * (receipts), balance (unsettled), and the last received date. Optionally
+     * bounded to a date range on the demand's due date.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function purposeLedger(int $associationId, int $purposeId, ?string $from, ?string $to): array
+    {
+        $params = [$associationId, $associationId, $purposeId];
+        $dateWhere = '';
+        if ($from !== null && $to !== null) {
+            $dateWhere = ' AND COALESCE(d.due_date, DATE(d.created_at)) BETWEEN ? AND ?';
+            $params[] = $from;
+            $params[] = $to;
+        }
+
+        return $this->db->fetchAll(
+            "SELECT m.id, m.member_number, m.name,
+                    COALESCE(SUM(d.amount), 0) AS total_demand,
+                    COALESCE(SUM(rr.paid), 0) AS collected,
+                    COALESCE(SUM(CASE WHEN d.status = 'paid' THEN 0
+                                      ELSE GREATEST(d.amount - COALESCE(rr.paid, 0), 0) END), 0) AS balance,
+                    MAX(rr.last_received) AS last_received,
+                    COUNT(*) AS demand_count
+             FROM demands d
+             JOIN members m ON m.id = d.member_id
+             LEFT JOIN (
+                 SELECT demand_id, SUM(amount) AS paid, MAX(received_on) AS last_received
+                 FROM receipts WHERE association_id = ? GROUP BY demand_id
+             ) rr ON rr.demand_id = d.id
+             WHERE d.association_id = ? AND d.demand_purpose_id = ? AND d.status <> 'cancelled' {$dateWhere}
+             GROUP BY m.id, m.member_number, m.name
+             ORDER BY m.name ASC",
+            $params
+        );
+    }
+
+    /**
      * Recompute a demand's status from the receipts allocated to it:
      * paid (fully covered), partial (some paid) or pending (none).
      * Cancelled demands are left untouched.
