@@ -44,6 +44,55 @@
             });
         });
 
+        // Member selection tables (bulk raise demand): search filter,
+        // select-all (of visible rows) and a live selected counter.
+        document.querySelectorAll('[data-member-select]').forEach(function (container) {
+            var filter = container.querySelector('[data-member-filter]');
+            var selectAll = container.querySelector('[data-select-all]');
+            var rows = Array.prototype.slice.call(container.querySelectorAll('[data-row]'));
+            var countEl = container.querySelector('[data-selected-count]');
+            var emptyEl = container.querySelector('[data-member-empty]');
+
+            function allCbs() { return container.querySelectorAll('[data-member-cb]'); }
+            function visibleCbs() {
+                return rows.filter(function (r) { return r.style.display !== 'none'; })
+                    .map(function (r) { return r.querySelector('[data-member-cb]'); })
+                    .filter(Boolean);
+            }
+            function updateCount() {
+                var n = 0;
+                allCbs().forEach(function (cb) { if (cb.checked) n++; });
+                if (countEl) countEl.textContent = n;
+                if (selectAll) {
+                    var vis = visibleCbs();
+                    selectAll.checked = vis.length > 0 && vis.every(function (cb) { return cb.checked; });
+                }
+            }
+            function applyFilter() {
+                var q = (filter.value || '').trim().toLowerCase();
+                var anyVisible = false;
+                rows.forEach(function (r) {
+                    var hay = r.getAttribute('data-search') || '';
+                    var show = q === '' || hay.indexOf(q) !== -1;
+                    r.style.display = show ? '' : 'none';
+                    if (show) anyVisible = true;
+                });
+                if (emptyEl) emptyEl.classList.toggle('hidden', anyVisible);
+                updateCount();
+            }
+            if (filter) filter.addEventListener('input', applyFilter);
+            if (selectAll) {
+                selectAll.addEventListener('change', function () {
+                    visibleCbs().forEach(function (cb) { cb.checked = selectAll.checked; });
+                    updateCount();
+                });
+            }
+            container.addEventListener('change', function (e) {
+                if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-member-cb')) updateCount();
+            });
+            updateCount();
+        });
+
         // Auto-hide success flashes after a few seconds.
         setTimeout(function () {
             document.querySelectorAll('[data-flash]').forEach(function (f) {
