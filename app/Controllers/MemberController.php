@@ -159,10 +159,13 @@ final class MemberController extends Controller
         Session::clearFormState();
     }
 
-    public function bulkUpload(Request $request): void
+    /**
+     * Wizard step 2 (parse): store the uploaded CSV and go to the review page.
+     */
+    public function bulkParse(Request $request): void
     {
         $this->requireRole('association_admin');
-        $assocId = Auth::associationId();
+
         $file = $request->file('csv');
         if ($file === null) {
             $this->withErrors(['csv' => 'Please choose a CSV file to upload.']);
@@ -171,22 +174,130 @@ final class MemberController extends Controller
         if (!in_array($ext, ['csv', 'txt'], true)) {
             $this->withErrors(['csv' => 'The file must be a .csv file.']);
         }
-
-        $handle = @fopen($file['tmp_name'], 'rb');
-        if ($handle === false) {
-            $this->withErrors(['csv' => 'The file could not be read.']);
+        if ((int) ($file['size'] ?? 0) > 2 * 1024 * 1024) {
+            $this->withErrors(['csv' => 'The file must be 2 MB or smaller.']);
+        }
+        if (!is_uploaded_file($file['tmp_name'])) {
+            $this->withErrors(['csv' => 'Invalid upload.']);
         }
 
-        // Read header row and map known columns.
+        $token = bin2hex(random_bytes(16));
+        $dest = $this->bulkCachePath($token);
+        if (!@move_uploaded_file($file['tmp_name'], $dest) && !@copy($file['tmp_name'], $dest)) {
+            $this->withErrors(['csv' => 'Could not store the uploaded file. Please check storage permissions and try again.']);
+        }
+
+        Session::set('__bulk_upload', ['token' => $token, 'name' => (string) ($file['name'] ?? 'upload.csv')]);
+        $this->redirect('/members/bulk/preview');
+    }
+
+    /**
+     * Wizard step 3 (review): validate every row and show a preview table.
+     */
+    public function bulkPreview(Request $request): void
+    {
+        $this->requireRole('association_admin');
+
+        $path = $this->resolveBulkFile(Session::get('__bulk_upload'));
+        if ($path === null) {
+            Session::flash('error', 'Your upload has expired. Please upload the file again.');
+            $this->redirect('/members/bulk');
+        }
+
+        $parsed = $this->parseBulkFile($path, Auth::associationId());
+        if ($parsed['headerError'] !== null) {
+            @unlink($path);
+            Session::forget('__bulk_upload');
+            Session::flash('error', $parsed['headerError']);
+            $this->redirect('/members/bulk');
+        }
+
+        $meta = Session::get('__bulk_upload');
+        $this->view('members.bulk_preview', [
+            'title'    => 'Bulk Upload — Review',
+            'parsed'   => $parsed,
+            'fileName' => (string) ($meta['name'] ?? 'upload.csv'),
+        ]);
+    }
+
+    /**
+     * Wizard step 4 (import): insert the valid rows, resilient to per-row errors.
+     */
+    public function bulkImport(Request $request): void
+    {
+        $this->requireRole('association_admin');
+        $assocId = Auth::associationId();
+
+        $path = $this->resolveBulkFile(Session::get('__bulk_upload'));
+        if ($path === null) {
+            Session::flash('error', 'Your upload has expired. Please upload the file again.');
+            $this->redirect('/members/bulk');
+        }
+
+        $parsed = $this->parseBulkFile($path, $assocId);
+        $model = new Member();
+        $imported = 0;
+        $failed = [];
+
+        foreach ($parsed['rows'] as $r) {
+            if (!$r['valid']) {
+                continue;
+            }
+            try {
+                $model->create($r['data']);
+                $imported++;
+            } catch (\Throwable $e) {
+                \App\Core\Logger::error('Bulk import row failed', ['line' => $r['line'], 'error' => $e->getMessage()]);
+                $failed[] = 'Row ' . $r['line'] . ': ' . $this->shortDbError($e->getMessage());
+            }
+        }
+
+        @unlink($path);
+        Session::forget('__bulk_upload');
+
+        $msg = "{$imported} member(s) imported.";
+        if ($parsed['invalidCount'] > 0) {
+            $msg .= " {$parsed['invalidCount']} row(s) with validation issues were skipped.";
+        }
+        if ($failed !== []) {
+            $msg .= ' ' . count($failed) . ' failed to save: ' . implode(' ', array_slice($failed, 0, 6));
+            $this->flash($imported > 0 ? 'warning' : 'error', $msg);
+        } else {
+            $this->flash($imported > 0 ? 'success' : 'warning', $msg);
+        }
+        $this->redirect('/members');
+    }
+
+    /**
+     * Parse + validate a bulk CSV file (no writes). Each row carries a
+     * validity flag, an error reason and the normalised insert data.
+     *
+     * @return array{headerError:?string,rows:list<array<string,mixed>>,validCount:int,invalidCount:int}
+     */
+    private function parseBulkFile(string $path, int $assocId): array
+    {
+        $result = ['headerError' => null, 'rows' => [], 'validCount' => 0, 'invalidCount' => 0];
+
+        $handle = @fopen($path, 'rb');
+        if ($handle === false) {
+            $result['headerError'] = 'The file could not be read.';
+            return $result;
+        }
+        // Skip a UTF-8 BOM if present.
+        if (fread($handle, 3) !== "\xEF\xBB\xBF") {
+            rewind($handle);
+        }
         $header = fgetcsv($handle, 0, ',', '"', '');
         if ($header === false || $header === null) {
             fclose($handle);
-            $this->withErrors(['csv' => 'The file appears to be empty.']);
+            $result['headerError'] = 'The file appears to be empty.';
+            return $result;
         }
         $map = $this->headerMap($header);
         if (!isset($map['member_number']) || !isset($map['name'])) {
             fclose($handle);
-            $this->withErrors(['csv' => 'The header row must include at least "member_number" and "name" columns.']);
+            $result['headerError'] = 'The header row must include at least "member_number" and "name" columns.';
+            return $result;
         }
 
         $types = [];
@@ -194,92 +305,114 @@ final class MemberController extends Controller
             $types[mb_strtolower(trim($t['name']))] = (int) $t['id'];
         }
 
-        $memberModel = new Member();
-        $seen = [];         // member numbers seen in this file
-        $added = 0;
-        $errors = [];       // row => message
-        $row = 1;
+        $model = new Member();
+        $seen = [];
+        $line = 1;
 
-        $memberModel->db()->beginTransaction();
-        try {
-            while (($cols = fgetcsv($handle, 0, ',', '"', '')) !== false) {
-                $row++;
-                if ($this->isBlankRow($cols)) {
-                    continue;
-                }
-                $get = static fn (string $key) => isset($map[$key]) ? trim((string) ($cols[$map[$key]] ?? '')) : '';
-
-                $number = $get('member_number');
-                $name = $get('name');
-
-                if ($number === '' || $name === '') {
-                    $errors[] = "Row {$row}: member number and name are required.";
-                    continue;
-                }
-                if (mb_strlen($number) > 50) {
-                    $errors[] = "Row {$row}: member number is too long (max 50).";
-                    continue;
-                }
-                $key = mb_strtolower($number);
-                if (isset($seen[$key])) {
-                    $errors[] = "Row {$row}: duplicate member number '{$number}' within the file.";
-                    continue;
-                }
-                if ($memberModel->memberNumberExists($assocId, $number)) {
-                    $errors[] = "Row {$row}: member number '{$number}' already exists.";
-                    continue;
-                }
-                $seen[$key] = true;
-
-                $gender = mb_strtolower($get('gender'));
-                $gender = in_array($gender, ['male', 'female', 'other'], true) ? $gender : null;
-                $typeId = null;
-                $typeName = mb_strtolower($get('member_type'));
-                if ($typeName !== '' && isset($types[$typeName])) {
-                    $typeId = $types[$typeName];
-                }
-                $age = $get('age');
-                $fam = $get('family_members_count');
-                $joined = $get('joined_on');
-
-                $memberModel->create([
-                    'association_id' => $assocId,
-                    'member_number'  => $number,
-                    'member_type_id' => $typeId,
-                    'name'           => mb_substr($name, 0, 180),
-                    'age'            => ($age !== '' && is_numeric($age)) ? (int) $age : null,
-                    'gender'         => $gender,
-                    'mobile'         => $get('mobile') ?: null,
-                    'whatsapp'       => $get('whatsapp') ?: null,
-                    'email'          => (filter_var($get('email'), FILTER_VALIDATE_EMAIL)) ? $get('email') : null,
-                    'family_members_count' => ($fam !== '' && is_numeric($fam)) ? (int) $fam : null,
-                    'occupation'     => $get('occupation') ?: null,
-                    'joined_on'      => ($joined !== '' && strtotime($joined)) ? date('Y-m-d', (int) strtotime($joined)) : null,
-                    'is_active'      => 1,
-                ]);
-                $added++;
+        while (($cols = fgetcsv($handle, 0, ',', '"', '')) !== false) {
+            $line++;
+            if ($this->isBlankRow($cols)) {
+                continue;
             }
-            $memberModel->db()->commit();
-        } catch (\Throwable $e) {
-            $memberModel->db()->rollBack();
-            fclose($handle);
-            \App\Core\Logger::error('Bulk member upload failed: ' . $e->getMessage());
-            $this->withErrors(['csv' => 'Upload failed while saving. No members were imported.']);
+            $get = static fn (string $key) => isset($map[$key]) ? trim((string) ($cols[$map[$key]] ?? '')) : '';
+
+            $number = $get('member_number');
+            $name = $get('name');
+
+            $error = null;
+            if ($number === '' || $name === '') {
+                $error = 'Member number and name are required.';
+            } elseif (mb_strlen($number) > 50) {
+                $error = 'Member number is too long (max 50).';
+            } elseif (isset($seen[mb_strtolower($number)])) {
+                $error = "Duplicate member number '{$number}' within the file.";
+            } elseif ($model->memberNumberExists($assocId, $number)) {
+                $error = "Member number '{$number}' already exists.";
+            }
+
+            $gender = mb_strtolower($get('gender'));
+            $gender = in_array($gender, ['male', 'female', 'other'], true) ? $gender : null;
+            $typeId = null;
+            $typeName = mb_strtolower($get('member_type'));
+            if ($typeName !== '' && isset($types[$typeName])) {
+                $typeId = $types[$typeName];
+            }
+            $age = $get('age');
+            $fam = $get('family_members_count');
+            $joined = $get('joined_on');
+
+            $data = [
+                'association_id' => $assocId,
+                'member_number'  => $number,
+                'member_type_id' => $typeId,
+                'name'           => mb_substr($name, 0, 180),
+                'age'            => ($age !== '' && is_numeric($age)) ? (int) $age : null,
+                'gender'         => $gender,
+                'mobile'         => $get('mobile') ?: null,
+                'whatsapp'       => $get('whatsapp') ?: null,
+                'email'          => filter_var($get('email'), FILTER_VALIDATE_EMAIL) ? $get('email') : null,
+                'family_members_count' => ($fam !== '' && is_numeric($fam)) ? (int) $fam : null,
+                'occupation'     => $get('occupation') ?: null,
+                'joined_on'      => ($joined !== '' && strtotime($joined)) ? date('Y-m-d', (int) strtotime($joined)) : null,
+                'is_active'      => 1,
+            ];
+
+            $valid = $error === null;
+            if ($valid) {
+                $seen[mb_strtolower($number)] = true;
+                $result['validCount']++;
+            } else {
+                $result['invalidCount']++;
+            }
+
+            $result['rows'][] = [
+                'line'    => $line,
+                'valid'   => $valid,
+                'error'   => $error,
+                'data'    => $data,
+                'display' => [
+                    'member_number' => $number,
+                    'name'          => $name,
+                    'member_type'   => $get('member_type'),
+                    'mobile'        => $get('mobile'),
+                    'email'         => $get('email'),
+                ],
+            ];
         }
         fclose($handle);
 
-        $msg = "{$added} member(s) imported.";
-        if ($errors !== []) {
-            $shown = array_slice($errors, 0, 12);
-            $msg .= ' ' . count($errors) . ' row(s) skipped: ' . implode(' ', $shown);
-            if (count($errors) > 12) {
-                $msg .= ' …';
-            }
-            $this->flash($added > 0 ? 'warning' : 'error', $msg);
-        } else {
-            $this->flash('success', $msg);
+        return $result;
+    }
+
+    /** Resolve the cached upload file path from the session token. */
+    private function resolveBulkFile(mixed $meta): ?string
+    {
+        if (!is_array($meta) || empty($meta['token']) || !preg_match('/^[a-f0-9]{32}$/', (string) $meta['token'])) {
+            return null;
         }
-        $this->redirect('/members');
+        $path = $this->bulkCachePath((string) $meta['token']);
+        return is_file($path) ? $path : null;
+    }
+
+    private function bulkCachePath(string $token): string
+    {
+        $dir = dirname(__DIR__, 2) . '/storage/cache';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        return $dir . '/bulk_' . $token . '.csv';
+    }
+
+    /** Turn a raw DB error into a short, admin-friendly hint. */
+    private function shortDbError(string $msg): string
+    {
+        if (stripos($msg, 'member_number') !== false && stripos($msg, 'column') !== false) {
+            return 'database not up to date — run migration 004 (member_number column missing).';
+        }
+        if (stripos($msg, 'Duplicate entry') !== false) {
+            return 'duplicate member number.';
+        }
+        return 'could not be saved (database error).';
     }
 
     /** Map a header row to known column indexes. @return array<string,int> */
