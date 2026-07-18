@@ -58,6 +58,8 @@ final class ProjectController extends Controller
         }
         $projectModel = new Project();
         $breakdown = $this->demandBreakdown((int) $project['id'], $assocId);
+        $otherIncome = $projectModel->otherIncome((int) $project['id'], $assocId);
+        $expenditures = $projectModel->expenditureList((int) $project['id'], $assocId);
         $this->view('projects.show', [
             'title'      => $project['name'],
             'project'    => $project,
@@ -66,6 +68,9 @@ final class ProjectController extends Controller
             'spent'      => $projectModel->spent((int) $project['id']),
             'received'   => $breakdown['received'],
             'pending'    => $breakdown['pending'],
+            'otherIncome' => $otherIncome,
+            'otherIncomeTotal' => $projectModel->otherIncomeTotal((int) $project['id'], $assocId),
+            'expenditures' => $expenditures,
             'demandTotals' => [
                 'demanded' => $breakdown['total_demanded'],
                 'received' => $breakdown['total_received'],
@@ -106,16 +111,61 @@ final class ProjectController extends Controller
             ];
         }
 
+        // Income other than member demand collections + project expenditure.
+        $model2 = new Project();
+        $otherIncome = $model2->otherIncome((int) $project['id'], $assocId);
+        $otherIncomeTotal = $model2->otherIncomeTotal((int) $project['id'], $assocId);
+        $expenditures = $model2->expenditureList((int) $project['id'], $assocId);
+
+        $incomeSection = [
+            'title'   => 'Other Income (non-member)',
+            'columns' => ['Sl No.', 'Date', 'Income Head', 'Received From', 'Mode', 'Remarks', 'Amount'],
+            'rows'    => [],
+        ];
+        $sl = 0;
+        foreach ($otherIncome as $r) {
+            $incomeSection['rows'][] = [
+                ++$sl,
+                $r['received_on'] ? format_date($r['received_on']) : '-',
+                $r['income_head_name'] ?: '-',
+                $r['member_name'] ?: '-',
+                ucfirst(str_replace('_', ' ', (string) $r['mode'])),
+                $r['remarks'] ?: '-',
+                number_format((float) $r['amount'], 2),
+            ];
+        }
+
+        $expenditureSection = [
+            'title'   => 'Expenditure',
+            'columns' => ['Sl No.', 'Date', 'Head', 'Category', 'Mode', 'Remarks', 'Amount'],
+            'rows'    => [],
+        ];
+        $sl = 0;
+        foreach ($expenditures as $r) {
+            $expenditureSection['rows'][] = [
+                ++$sl,
+                $r['paid_on'] ? format_date($r['paid_on']) : '-',
+                $r['head_name'] ?: '-',
+                ucfirst((string) $r['category']),
+                ucfirst(str_replace('_', ' ', (string) $r['mode'])),
+                $r['remarks'] ?: '-',
+                number_format((float) $r['amount'], 2),
+            ];
+        }
+
         $meta = [
             'Type'   => $project['project_type_name'] ?? 'General',
             'Status' => ucfirst(str_replace('_', ' ', (string) $project['status'])),
         ];
+        $memberCollected = $breakdown['total_received'];
         $summary = [
-            'Target'    => number_format((float) $project['target_amount'], 2),
-            'Demanded'  => number_format($breakdown['total_demanded'], 2),
-            'Received'  => number_format($breakdown['total_received'], 2),
-            'Collected' => number_format($collected, 2),
-            'Spent'     => number_format($spent, 2),
+            'Target'        => number_format((float) $project['target_amount'], 2),
+            'Demanded'      => number_format($breakdown['total_demanded'], 2),
+            'Member Coll.'  => number_format($memberCollected, 2),
+            'Other Income'  => number_format($otherIncomeTotal, 2),
+            'Total Income'  => number_format($collected, 2),
+            'Spent'         => number_format($spent, 2),
+            'Balance'       => number_format($collected - $spent, 2),
         ];
 
         $this->pdf($assocId)->stream(
@@ -124,7 +174,9 @@ final class ProjectController extends Controller
             $columns,
             $rows,
             $meta,
-            $summary
+            $summary,
+            [$incomeSection, $expenditureSection],
+            'Member Demands & Collections'
         );
     }
 

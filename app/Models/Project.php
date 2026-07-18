@@ -88,4 +88,49 @@ final class Project extends Model
             [$associationId, $associationId, $projectId]
         );
     }
+
+    /**
+     * Income booked to the project that is NOT a member demand collection
+     * (receipts with no linked demand) — e.g. donations, grants, interest.
+     * @return list<array<string,mixed>>
+     */
+    public function otherIncome(int $projectId, int $associationId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT r.received_on, r.amount, r.mode, r.remarks,
+                    ih.name AS income_head_name, m.name AS member_name
+             FROM receipts r
+             LEFT JOIN income_heads ih ON ih.id = r.income_head_id
+             LEFT JOIN members m ON m.id = r.member_id
+             WHERE r.association_id = ? AND r.project_id = ? AND r.demand_id IS NULL
+             ORDER BY r.received_on DESC, r.id DESC",
+            [$associationId, $projectId]
+        );
+    }
+
+    public function otherIncomeTotal(int $projectId, int $associationId): float
+    {
+        return (float) $this->db->fetchColumn(
+            "SELECT COALESCE(SUM(amount),0) FROM receipts
+             WHERE association_id = ? AND project_id = ? AND demand_id IS NULL",
+            [$associationId, $projectId]
+        );
+    }
+
+    /**
+     * Expenditures booked to the project.
+     * @return list<array<string,mixed>>
+     */
+    public function expenditureList(int $projectId, int $associationId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT e.paid_on, e.amount, e.mode, e.remarks, e.category,
+                    eh.name AS head_name
+             FROM expenditures e
+             LEFT JOIN expenditure_heads eh ON eh.id = e.expenditure_head_id
+             WHERE e.association_id = ? AND e.project_id = ?
+             ORDER BY e.paid_on DESC, e.id DESC",
+            [$associationId, $projectId]
+        );
+    }
 }
