@@ -67,6 +67,62 @@ final class Project extends Model
     }
 
     /**
+     * Project-wise income (receipts) and expenditure within an optional date
+     * range, plus a "general / non-project" bucket for entries not tied to a
+     * project.
+     *
+     * @return array{rows:list<array<string,mixed>>,general:array{income:float,expense:float}}
+     */
+    public function incomeExpenditureByProject(int $associationId, ?string $from, ?string $to): array
+    {
+        $rWhere = '';
+        $rDates = [];
+        $eWhere = '';
+        $eDates = [];
+        if ($from !== null && $from !== '') {
+            $rWhere .= ' AND received_on >= ?';
+            $rDates[] = $from;
+            $eWhere .= ' AND paid_on >= ?';
+            $eDates[] = $from;
+        }
+        if ($to !== null && $to !== '') {
+            $rWhere .= ' AND received_on <= ?';
+            $rDates[] = $to;
+            $eWhere .= ' AND paid_on <= ?';
+            $eDates[] = $to;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT p.id, p.name,
+                    COALESCE(inc.total, 0) AS income,
+                    COALESCE(exp.total, 0) AS expense
+             FROM projects p
+             LEFT JOIN (
+                 SELECT project_id, SUM(amount) AS total FROM receipts
+                 WHERE association_id = ?{$rWhere} AND project_id IS NOT NULL GROUP BY project_id
+             ) inc ON inc.project_id = p.id
+             LEFT JOIN (
+                 SELECT project_id, SUM(amount) AS total FROM expenditures
+                 WHERE association_id = ?{$eWhere} AND project_id IS NOT NULL GROUP BY project_id
+             ) exp ON exp.project_id = p.id
+             WHERE p.association_id = ?
+             ORDER BY p.name ASC",
+            array_merge([$associationId], $rDates, [$associationId], $eDates, [$associationId])
+        );
+
+        $genIncome = (float) $this->db->fetchColumn(
+            "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE association_id = ? AND project_id IS NULL{$rWhere}",
+            array_merge([$associationId], $rDates)
+        );
+        $genExpense = (float) $this->db->fetchColumn(
+            "SELECT COALESCE(SUM(amount), 0) FROM expenditures WHERE association_id = ? AND project_id IS NULL{$eWhere}",
+            array_merge([$associationId], $eDates)
+        );
+
+        return ['rows' => $rows, 'general' => ['income' => $genIncome, 'expense' => $genExpense]];
+    }
+
+    /**
      * Demands raised for a project with each member's payment status and the
      * last received date.
      * @return list<array<string,mixed>>
