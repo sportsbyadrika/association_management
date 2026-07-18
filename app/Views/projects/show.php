@@ -39,6 +39,7 @@ $renderMemberList = static function (array $list): void {
     <div class="flex flex-wrap gap-2">
         <a href="<?= e(url('/demands/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add demand</a>
         <a href="<?= e(url('/receipts/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add collection</a>
+        <a href="<?= e(url('/expenditures/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add expenditure</a>
         <a href="<?= e(url('/projects/' . $project['id'] . '/ledger')) ?>" target="_blank" rel="noopener" class="btn-secondary btn-sm">Print Ledger</a>
         <a href="<?= e(url('/projects/' . $project['id'] . '/edit')) ?>" class="btn-primary btn-sm">Edit</a>
     </div>

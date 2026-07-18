@@ -11,7 +11,7 @@
 <div class="card overflow-hidden">
     <div class="overflow-x-auto">
         <table class="table">
-            <thead><tr><th>Date</th><th>Head</th><th>Category</th><th>Project</th><th>Mode</th><th>Bank</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
+            <thead><tr><th>Date</th><th>Head</th><th>Category</th><th>Project</th><th>Mode</th><th>Bank</th><th>Remarks</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
             <tbody>
             <?php foreach ($expenditures as $x): ?>
                 <tr>
@@ -21,8 +21,11 @@
                     <td><?= e($x['project_name'] ?? '—') ?></td>
                     <td class="capitalize"><?= e(str_replace('_', ' ', $x['mode'])) ?></td>
                     <td><?= e($x['bank_name'] ?? '—') ?></td>
+                    <td class="max-w-xs truncate text-gray-600" title="<?= e($x['remarks'] ?? '') ?>"><?= e($x['remarks'] ?: '—') ?></td>
                     <td class="text-right font-medium text-red-600">₹ <?= money($x['amount']) ?></td>
-                    <td class="text-right">
+                    <td class="whitespace-nowrap text-right">
+                        <a href="<?= e(url('/expenditures/' . $x['id'] . '/edit')) ?>" class="text-brand-700 hover:underline">Edit</a>
+                        <span class="text-gray-300">·</span>
                         <form method="post" action="<?= e(url('/expenditures/' . $x['id'] . '/delete')) ?>" class="inline" data-confirm="Delete this expenditure?">
                             <?= csrf_field() ?>
                             <button type="submit" class="text-red-600 hover:underline">Delete</button>
@@ -31,7 +34,7 @@
                 </tr>
             <?php endforeach; ?>
             <?php if ($expenditures === []): ?>
-                <tr><td colspan="8" class="text-center text-gray-400 py-8">No expenditures yet.</td></tr>
+                <tr><td colspan="9" class="text-center text-gray-400 py-8">No expenditures yet.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>
