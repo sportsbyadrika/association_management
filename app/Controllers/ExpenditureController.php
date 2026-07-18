@@ -34,17 +34,91 @@ final class ExpenditureController extends Controller
     public function create(Request $request): void
     {
         $assocId = Auth::associationId();
+        $selectedProject = (int) $request->input('project_id', 0);
         $this->view('expenditures.form', [
             'title'            => 'Record Expenditure',
+            'expenditure'      => null,
             'heads'            => (new Master('expenditure-heads'))->activeForAssociation($assocId),
             'projects'         => (new Project())->options($assocId),
             'bankAccounts'     => (new BankAccount())->options($assocId),
-            'selectedProject'  => (int) $request->input('project_id', 0),
+            'selectedProject'  => $selectedProject,
+            'selectedCategory' => $selectedProject > 0 ? 'project' : 'association',
         ]);
         Session::clearFormState();
     }
 
     public function store(Request $request): void
+    {
+        $assocId = Auth::associationId();
+        $input = $this->validatedInput($request);
+
+        (new Expenditure())->create([
+            'association_id'      => $assocId,
+            'expenditure_head_id' => $input['expenditure_head_id'],
+            'project_id'          => $input['category'] === 'project' ? $input['project_id'] : null,
+            'category'            => $input['category'],
+            'amount'              => $input['amount'],
+            'paid_on'             => $input['paid_on'],
+            'bank_account_id'     => $input['bank_account_id'],
+            'mode'                => $input['mode'],
+            'remarks'             => $input['remarks'] ?: null,
+            'created_by'          => Auth::id(),
+        ]);
+
+        $this->flash('success', 'Expenditure recorded.');
+        $this->redirect('/expenditures');
+    }
+
+    public function edit(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $exp = (new Expenditure())->findForAssociation((int) $params['id'], $assocId);
+        if ($exp === null) {
+            Response::notFound();
+        }
+        $this->view('expenditures.form', [
+            'title'            => 'Edit Expenditure',
+            'expenditure'      => $exp,
+            'heads'            => (new Master('expenditure-heads'))->activeForAssociation($assocId),
+            'projects'         => (new Project())->options($assocId),
+            'bankAccounts'     => (new BankAccount())->options($assocId),
+            'selectedProject'  => (int) ($exp['project_id'] ?? 0),
+            'selectedCategory' => (string) $exp['category'],
+        ]);
+        Session::clearFormState();
+    }
+
+    public function update(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $exp = (new Expenditure())->findForAssociation((int) $params['id'], $assocId);
+        if ($exp === null) {
+            Response::notFound();
+        }
+        $input = $this->validatedInput($request);
+
+        (new Expenditure())->update((int) $exp['id'], [
+            'expenditure_head_id' => $input['expenditure_head_id'],
+            'project_id'          => $input['category'] === 'project' ? $input['project_id'] : null,
+            'category'            => $input['category'],
+            'amount'              => $input['amount'],
+            'paid_on'             => $input['paid_on'],
+            'bank_account_id'     => $input['bank_account_id'],
+            'mode'                => $input['mode'],
+            'remarks'             => $input['remarks'] ?: null,
+        ]);
+
+        $this->flash('success', 'Expenditure updated.');
+        $this->redirect('/expenditures');
+    }
+
+    /**
+     * Validate + normalise the shared expenditure form input. On failure this
+     * redirects back with errors (via withErrors) and never returns.
+     *
+     * @return array<string,mixed>
+     */
+    private function validatedInput(Request $request): array
     {
         $assocId = Auth::associationId();
         $input = [
@@ -67,7 +141,6 @@ final class ExpenditureController extends Controller
         if ($validator->fails()) {
             $this->withErrors($validator->errors(), $input);
         }
-
         if ($input['category'] === 'project' && $input['project_id'] === null) {
             $this->withErrors(['project_id' => 'Select the project this expense belongs to.'], $input);
         }
@@ -76,21 +149,7 @@ final class ExpenditureController extends Controller
         }
         $this->assertTenant($assocId, $input);
 
-        (new Expenditure())->create([
-            'association_id'      => $assocId,
-            'expenditure_head_id' => $input['expenditure_head_id'],
-            'project_id'          => $input['category'] === 'project' ? $input['project_id'] : null,
-            'category'            => $input['category'],
-            'amount'              => $input['amount'],
-            'paid_on'             => $input['paid_on'],
-            'bank_account_id'     => $input['bank_account_id'],
-            'mode'                => $input['mode'],
-            'remarks'             => $input['remarks'] ?: null,
-            'created_by'          => Auth::id(),
-        ]);
-
-        $this->flash('success', 'Expenditure recorded.');
-        $this->redirect('/expenditures');
+        return $input;
     }
 
     public function destroy(Request $request, array $params): void

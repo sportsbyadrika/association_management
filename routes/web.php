@@ -115,6 +115,8 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->get('/expenditures', [ExpenditureController::class, 'index']);
     $router->get('/expenditures/create', [ExpenditureController::class, 'create']);
     $router->post('/expenditures', [ExpenditureController::class, 'store']);
+    $router->get('/expenditures/{id}/edit', [ExpenditureController::class, 'edit']);
+    $router->post('/expenditures/{id}', [ExpenditureController::class, 'update']);
     $router->post('/expenditures/{id}/delete', [ExpenditureController::class, 'destroy']);
 
     // Projects
