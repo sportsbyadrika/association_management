@@ -10,7 +10,7 @@ $qs = 'purpose_id=' . $purposeId . '&fy=' . urlencode($fyValue);
     <div>
         <a href="<?= e(url('/reports')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Reports</a>
         <h1 class="mt-1 text-2xl font-bold text-gray-900">Purpose Ledger</h1>
-        <p class="mt-1 text-sm text-gray-500">Per-member demand, collection and balance for a demand purpose.</p>
+        <p class="mt-1 text-sm text-gray-500">Project-wise demand, collection and balance for a demand purpose.</p>
     </div>
     <div class="flex gap-2">
         <a href="<?= e(url('/reports/purpose-ledger?' . $qs . '&format=csv')) ?>" class="btn-secondary btn-sm">CSV</a>
@@ -55,32 +55,48 @@ $qs = 'purpose_id=' . $purposeId . '&fy=' . urlencode($fyValue);
     <div class="overflow-x-auto">
         <table class="table">
             <thead><tr>
-                <th>Sl No.</th><th>Member No.</th><th>Name</th>
-                <th class="text-right">Total Demand</th><th class="text-right">Collected</th><th class="text-right">Balance</th>
-                <th>Last Received</th>
+                <th>Sl No.</th><th>Project</th>
+                <th class="text-right">Members</th><th class="text-right">Total Demand</th>
+                <th class="text-right">Collections</th><th class="text-right">Collected</th>
+                <th class="text-right">Pending</th><th class="text-right">Balance</th>
+                <th class="text-right">List</th>
             </tr></thead>
             <tbody>
             <?php foreach ($rows as $i => $r): ?>
+                <?php $projectVal = $r['project_id'] !== null ? (string) (int) $r['project_id'] : 'none'; ?>
                 <tr>
                     <td class="text-gray-400"><?= $i + 1 ?></td>
-                    <td class="font-medium text-gray-700"><?= e($r['member_number'] ?: '—') ?></td>
-                    <td><?= e($r['name']) ?></td>
+                    <td class="font-medium text-gray-700"><?= e($r['project_name'] ?: 'No project') ?></td>
+                    <td class="text-right"><?= (int) $r['members_demanded'] ?></td>
                     <td class="text-right">₹ <?= money($r['total_demand']) ?></td>
+                    <td class="text-right"><?= (int) $r['collections_count'] ?></td>
                     <td class="text-right text-brand-700">₹ <?= money($r['collected']) ?></td>
+                    <td class="text-right"><?= (int) $r['balance_count'] ?></td>
                     <td class="text-right <?= (float) $r['balance'] > 0 ? 'text-amber-600' : 'text-gray-400' ?>">₹ <?= money($r['balance']) ?></td>
-                    <td><?= $r['last_received'] ? e(format_date($r['last_received'])) : '—' ?></td>
+                    <td class="text-right">
+                        <a href="<?= e(url('/reports/purpose-ledger?' . $qs . '&project=' . $projectVal)) ?>"
+                           title="View member-wise list"
+                           class="inline-flex items-center justify-center rounded-md p-1.5 text-brand-700 hover:bg-brand-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                            </svg>
+                        </a>
+                    </td>
                 </tr>
             <?php endforeach; ?>
             <?php if ($rows === []): ?>
-                <tr><td colspan="7" class="text-center text-gray-400 py-8">No demands for this purpose<?= $selectedFy ? ' in ' . e($selectedFy['label']) : '' ?>.</td></tr>
+                <tr><td colspan="9" class="text-center text-gray-400 py-8">No demands for this purpose<?= $selectedFy ? ' in ' . e($selectedFy['label']) : '' ?>.</td></tr>
             <?php endif; ?>
             </tbody>
             <?php if ($rows !== []): ?>
             <tfoot>
                 <tr class="bg-gray-50 font-semibold">
-                    <td colspan="3" class="text-right">Total</td>
+                    <td colspan="2" class="text-right">Total</td>
+                    <td class="text-right"><?= (int) $totals['members'] ?></td>
                     <td class="text-right">₹ <?= money($totals['demand']) ?></td>
+                    <td class="text-right"><?= (int) $totals['collections'] ?></td>
                     <td class="text-right">₹ <?= money($totals['collected']) ?></td>
+                    <td class="text-right"><?= (int) $totals['balance_count'] ?></td>
                     <td class="text-right">₹ <?= money($totals['balance']) ?></td>
                     <td></td>
                 </tr>

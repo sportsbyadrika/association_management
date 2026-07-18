@@ -95,7 +95,7 @@ final class Demand extends Model
      *
      * @return list<array<string,mixed>>
      */
-    public function purposeLedger(int $associationId, int $purposeId, ?string $from, ?string $to): array
+    public function purposeLedger(int $associationId, int $purposeId, ?string $from, ?string $to, bool $filterProject = false, ?int $projectId = null): array
     {
         $params = [$associationId, $associationId, $purposeId];
         $dateWhere = '';
@@ -103,6 +103,12 @@ final class Demand extends Model
             $dateWhere = ' AND COALESCE(d.due_date, DATE(d.created_at)) BETWEEN ? AND ?';
             $params[] = $from;
             $params[] = $to;
+        }
+        $projectWhere = '';
+        if ($filterProject) {
+            // Null-safe equality so a null projectId matches demands with no project.
+            $projectWhere = ' AND d.project_id <=> ?';
+            $params[] = $projectId;
         }
 
         return $this->db->fetchAll(
@@ -119,9 +125,50 @@ final class Demand extends Model
                  SELECT demand_id, SUM(amount) AS paid, MAX(received_on) AS last_received
                  FROM receipts WHERE association_id = ? GROUP BY demand_id
              ) rr ON rr.demand_id = d.id
-             WHERE d.association_id = ? AND d.demand_purpose_id = ? AND d.status <> 'cancelled' {$dateWhere}
+             WHERE d.association_id = ? AND d.demand_purpose_id = ? AND d.status <> 'cancelled' {$dateWhere}{$projectWhere}
              GROUP BY m.id, m.member_number, m.name
              ORDER BY m.name ASC",
+            $params
+        );
+    }
+
+    /**
+     * Per-project rollup for a single demand purpose: members demanded and
+     * total demand, number of members who have paid something and the amount
+     * collected, and the number with an outstanding balance and that amount.
+     * Demands with no project are grouped under a null project_id. Optionally
+     * bounded to a date range on the demand's due date.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function purposeProjectLedger(int $associationId, int $purposeId, ?string $from, ?string $to): array
+    {
+        $params = [$associationId, $associationId, $purposeId];
+        $dateWhere = '';
+        if ($from !== null && $to !== null) {
+            $dateWhere = ' AND COALESCE(d.due_date, DATE(d.created_at)) BETWEEN ? AND ?';
+            $params[] = $from;
+            $params[] = $to;
+        }
+
+        return $this->db->fetchAll(
+            "SELECT d.project_id, p.name AS project_name,
+                    COUNT(DISTINCT d.member_id) AS members_demanded,
+                    COALESCE(SUM(d.amount), 0) AS total_demand,
+                    SUM(CASE WHEN COALESCE(rr.paid, 0) > 0 THEN 1 ELSE 0 END) AS collections_count,
+                    COALESCE(SUM(rr.paid), 0) AS collected,
+                    SUM(CASE WHEN d.status <> 'paid' AND (d.amount - COALESCE(rr.paid, 0)) > 0 THEN 1 ELSE 0 END) AS balance_count,
+                    COALESCE(SUM(CASE WHEN d.status = 'paid' THEN 0
+                                      ELSE GREATEST(d.amount - COALESCE(rr.paid, 0), 0) END), 0) AS balance
+             FROM demands d
+             LEFT JOIN projects p ON p.id = d.project_id
+             LEFT JOIN (
+                 SELECT demand_id, SUM(amount) AS paid
+                 FROM receipts WHERE association_id = ? GROUP BY demand_id
+             ) rr ON rr.demand_id = d.id
+             WHERE d.association_id = ? AND d.demand_purpose_id = ? AND d.status <> 'cancelled' {$dateWhere}
+             GROUP BY d.project_id, p.name
+             ORDER BY (d.project_id IS NULL), p.name ASC",
             $params
         );
     }

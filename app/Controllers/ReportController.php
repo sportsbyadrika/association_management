@@ -14,6 +14,7 @@ use App\Models\DemandPurpose;
 use App\Models\Expenditure;
 use App\Models\FinancialYear;
 use App\Models\Member;
+use App\Models\Project;
 use App\Models\Receipt;
 use App\Services\CsvExporter;
 use App\Services\ImageUploader;
@@ -181,56 +182,135 @@ final class ReportController extends Controller
             $selectedFy = $fyModel->current($assocId);
         }
 
+        $from = $selectedFy['start_date'] ?? null;
+        $to = $selectedFy['end_date'] ?? null;
+        $purposeName = $selectedPurpose['name'] ?? 'Purpose';
+        $rangeLabel = $selectedFy ? $selectedFy['label'] : 'All time';
+        $format = (string) $request->input('format', '');
+        $slug = strtolower(str_replace(' ', '-', (string) $purposeName));
+
+        // Drill-down: when a project is selected, show the member-wise list for
+        // that project (the "list" action on a project row).
+        $projectParam = $request->input('project');
+        $memberMode = $projectParam !== null && $projectParam !== '';
+
+        if ($memberMode) {
+            $projectId = $projectParam === 'none' ? null : (int) $projectParam;
+            if ($projectId !== null) {
+                $project = (new Project())->findWithType($projectId, $assocId);
+                $projectName = $project['name'] ?? ('#' . $projectId);
+            } else {
+                $projectName = 'No project';
+            }
+
+            $rows = $purposeId > 0
+                ? (new Demand())->purposeLedger($assocId, $purposeId, $from, $to, true, $projectId)
+                : [];
+
+            $totals = ['demand' => 0.0, 'collected' => 0.0, 'balance' => 0.0];
+            foreach ($rows as $r) {
+                $totals['demand'] += (float) $r['total_demand'];
+                $totals['collected'] += (float) $r['collected'];
+                $totals['balance'] += (float) $r['balance'];
+            }
+
+            if ($format === 'csv' || $format === 'pdf') {
+                $columns = ['Sl No.', 'Member No.', 'Name', 'Total Demand', 'Collected', 'Balance', 'Last Received'];
+                $data = [];
+                $sl = 0;
+                foreach ($rows as $r) {
+                    $data[] = [
+                        ++$sl,
+                        $r['member_number'] ?: '-',
+                        $r['name'],
+                        number_format((float) $r['total_demand'], 2),
+                        number_format((float) $r['collected'], 2),
+                        number_format((float) $r['balance'], 2),
+                        $r['last_received'] ? format_date($r['last_received']) : '-',
+                    ];
+                }
+                $meta = [
+                    'Purpose'    => $purposeName,
+                    'Project'    => $projectName,
+                    'Date range' => $rangeLabel,
+                ];
+                $summary = [
+                    'Total demand' => number_format($totals['demand'], 2),
+                    'Collected'    => number_format($totals['collected'], 2),
+                    'Balance'      => number_format($totals['balance'], 2),
+                ];
+                $this->emit($request, 'ledger-' . $slug . '-members',
+                    $purposeName . ' Ledger — ' . $projectName, $columns, $data, $meta, $summary);
+            }
+
+            $this->view('reports.purpose_ledger_members', [
+                'title'           => 'Purpose Ledger',
+                'purposeId'       => $purposeId,
+                'selectedPurpose' => $selectedPurpose,
+                'selectedFy'      => $selectedFy,
+                'fyParam'         => $fyParam,
+                'projectParam'    => (string) $projectParam,
+                'projectName'     => $projectName,
+                'rows'            => $rows,
+                'totals'          => $totals,
+            ]);
+            return;
+        }
+
+        // Default: project-wise rollup for the selected purpose.
         $rows = $purposeId > 0
-            ? (new Demand())->purposeLedger($assocId, $purposeId, $selectedFy['start_date'] ?? null, $selectedFy['end_date'] ?? null)
+            ? (new Demand())->purposeProjectLedger($assocId, $purposeId, $from, $to)
             : [];
 
-        $totals = ['demand' => 0.0, 'collected' => 0.0, 'balance' => 0.0];
+        $totals = ['members' => 0, 'demand' => 0.0, 'collections' => 0, 'collected' => 0.0, 'balance_count' => 0, 'balance' => 0.0];
         foreach ($rows as $r) {
+            $totals['members'] += (int) $r['members_demanded'];
             $totals['demand'] += (float) $r['total_demand'];
+            $totals['collections'] += (int) $r['collections_count'];
             $totals['collected'] += (float) $r['collected'];
+            $totals['balance_count'] += (int) $r['balance_count'];
             $totals['balance'] += (float) $r['balance'];
         }
 
-        $format = (string) $request->input('format', '');
         if ($format === 'csv' || $format === 'pdf') {
-            $columns = ['Sl No.', 'Member No.', 'Name', 'Total Demand', 'Collected', 'Balance', 'Last Received'];
+            $columns = ['Sl No.', 'Project', 'Members', 'Total Demand', 'Collections', 'Collected', 'Pending', 'Balance'];
             $data = [];
             $sl = 0;
             foreach ($rows as $r) {
                 $data[] = [
                     ++$sl,
-                    $r['member_number'] ?: '-',
-                    $r['name'],
+                    $r['project_name'] ?: 'No project',
+                    (int) $r['members_demanded'],
                     number_format((float) $r['total_demand'], 2),
+                    (int) $r['collections_count'],
                     number_format((float) $r['collected'], 2),
+                    (int) $r['balance_count'],
                     number_format((float) $r['balance'], 2),
-                    $r['last_received'] ? format_date($r['last_received']) : '-',
                 ];
             }
             $meta = [
-                'Purpose'    => $selectedPurpose['name'] ?? '-',
-                'Date range' => $selectedFy ? $selectedFy['label'] : 'All time',
+                'Purpose'    => $purposeName,
+                'Date range' => $rangeLabel,
             ];
             $summary = [
                 'Total demand' => number_format($totals['demand'], 2),
                 'Collected'    => number_format($totals['collected'], 2),
                 'Balance'      => number_format($totals['balance'], 2),
             ];
-            $this->emit($request, 'ledger-' . strtolower(str_replace(' ', '-', (string) ($selectedPurpose['name'] ?? 'purpose'))),
-                (($selectedPurpose['name'] ?? 'Purpose') . ' Ledger'), $columns, $data, $meta, $summary);
+            $this->emit($request, 'ledger-' . $slug,
+                $purposeName . ' Ledger', $columns, $data, $meta, $summary);
         }
 
         $this->view('reports.purpose_ledger', [
-            'title'          => 'Purpose Ledger',
-            'purposes'       => $purposes,
-            'purposeId'      => $purposeId,
+            'title'           => 'Purpose Ledger',
+            'purposes'        => $purposes,
+            'purposeId'       => $purposeId,
             'selectedPurpose' => $selectedPurpose,
-            'financialYears' => $financialYears,
-            'selectedFy'     => $selectedFy,
-            'fyParam'        => $fyParam,
-            'rows'           => $rows,
-            'totals'         => $totals,
+            'financialYears'  => $financialYears,
+            'selectedFy'      => $selectedFy,
+            'fyParam'         => $fyParam,
+            'rows'            => $rows,
+            'totals'          => $totals,
         ]);
     }
 
