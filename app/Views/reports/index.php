@@ -37,4 +37,10 @@
         <p class="mt-1 text-sm text-gray-500">Expenditure by category and by project, with a date filter.</p>
         <a href="<?= e(url('/reports/expenditure')) ?>" class="btn-primary btn-sm mt-4">Open</a>
     </div>
+
+    <div class="card card-body">
+        <h2 class="font-semibold text-gray-900">Income &amp; Expenditure</h2>
+        <p class="mt-1 text-sm text-gray-500">Project-wise income and expenditure with net and a grand total, with a date filter.</p>
+        <a href="<?= e(url('/reports/income-expenditure')) ?>" class="btn-primary btn-sm mt-4">Open</a>
+    </div>
 </div>

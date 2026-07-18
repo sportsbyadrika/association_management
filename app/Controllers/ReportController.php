@@ -144,6 +144,83 @@ final class ReportController extends Controller
         ]);
     }
 
+    // ---- 4b. Income & Expenditure (project-wise) -----------------------
+
+    public function incomeExpenditure(Request $request): void
+    {
+        $assocId = Auth::associationId();
+        [$from, $to] = $this->dateRange($request);
+
+        $data = (new Project())->incomeExpenditureByProject($assocId, $from, $to);
+
+        // Assemble display rows: each project, then a general/non-project row.
+        $rows = [];
+        foreach ($data['rows'] as $r) {
+            $income = (float) $r['income'];
+            $expense = (float) $r['expense'];
+            $rows[] = [
+                'project' => $r['name'],
+                'income'  => $income,
+                'expense' => $expense,
+                'net'     => $income - $expense,
+            ];
+        }
+        $gen = $data['general'];
+        if ($gen['income'] > 0 || $gen['expense'] > 0) {
+            $rows[] = [
+                'project' => 'General / Non-project',
+                'income'  => (float) $gen['income'],
+                'expense' => (float) $gen['expense'],
+                'net'     => (float) $gen['income'] - (float) $gen['expense'],
+            ];
+        }
+
+        $totals = ['income' => 0.0, 'expense' => 0.0, 'net' => 0.0];
+        foreach ($rows as $r) {
+            $totals['income'] += $r['income'];
+            $totals['expense'] += $r['expense'];
+            $totals['net'] += $r['net'];
+        }
+
+        $format = (string) $request->input('format', '');
+        if ($format === 'csv' || $format === 'pdf') {
+            $columns = ['Sl No.', 'Project', 'Income', 'Expense', 'Net'];
+            $out = [];
+            $sl = 0;
+            foreach ($rows as $r) {
+                $out[] = [
+                    ++$sl,
+                    $r['project'],
+                    number_format($r['income'], 2),
+                    number_format($r['expense'], 2),
+                    number_format($r['net'], 2),
+                ];
+            }
+            // Grand total row.
+            $out[] = [
+                '', 'Grand Total',
+                number_format($totals['income'], 2),
+                number_format($totals['expense'], 2),
+                number_format($totals['net'], 2),
+            ];
+            $meta = $this->rangeMeta($from, $to);
+            $summary = [
+                'Total income'  => number_format($totals['income'], 2),
+                'Total expense' => number_format($totals['expense'], 2),
+                'Net'           => number_format($totals['net'], 2),
+            ];
+            $this->emit($request, 'income-expenditure-report', 'Income & Expenditure Report', $columns, $out, $meta, $summary);
+        }
+
+        $this->view('reports.income_expenditure', [
+            'title'  => 'Income & Expenditure Report',
+            'rows'   => $rows,
+            'totals' => $totals,
+            'from'   => $from,
+            'to'     => $to,
+        ]);
+    }
+
     // ---- 5. Purpose (e.g. Subscription) ledger -------------------------
 
     public function purposeLedger(Request $request): void
