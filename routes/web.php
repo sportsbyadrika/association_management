@@ -109,6 +109,8 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->get('/receipts', [ReceiptController::class, 'index']);
     $router->get('/receipts/create', [ReceiptController::class, 'create']);
     $router->post('/receipts', [ReceiptController::class, 'store']);
+    $router->get('/receipts/{id}/edit', [ReceiptController::class, 'edit']);
+    $router->post('/receipts/{id}', [ReceiptController::class, 'update']);
     $router->post('/receipts/{id}/delete', [ReceiptController::class, 'destroy']);
 
     // Expenditure

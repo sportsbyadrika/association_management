@@ -16,20 +16,45 @@ final class Receipt extends Model
         'remarks', 'created_by',
     ];
 
-    /** @return array{data:list<array<string,mixed>>,total:int,page:int,perPage:int,pages:int} */
-    public function paginateForAssociation(int $associationId, int $page = 1, int $perPage = 20): array
+    /**
+     * @param int|string $projectFilter '' = all, 'none' = no project, or a project id
+     * @return array{data:list<array<string,mixed>>,total:int,page:int,perPage:int,pages:int}
+     */
+    public function paginateForAssociation(int $associationId, int $page = 1, int $perPage = 20, string $search = '', int|string $projectFilter = '', ?string $from = null, ?string $to = null): array
     {
-        $base = "SELECT r.*, m.name AS member_name, ih.name AS income_head_name,
+        $where = 'WHERE r.association_id = ?';
+        $params = [$associationId];
+        if ($search !== '') {
+            $where .= ' AND (m.name LIKE ? OR m.member_number LIKE ?)';
+            $like = '%' . $search . '%';
+            array_push($params, $like, $like);
+        }
+        if ($projectFilter === 'none') {
+            $where .= ' AND r.project_id IS NULL';
+        } elseif ($projectFilter !== '' && (int) $projectFilter > 0) {
+            $where .= ' AND r.project_id = ?';
+            $params[] = (int) $projectFilter;
+        }
+        if ($from !== null && $from !== '') {
+            $where .= ' AND r.received_on >= ?';
+            $params[] = $from;
+        }
+        if ($to !== null && $to !== '') {
+            $where .= ' AND r.received_on <= ?';
+            $params[] = $to;
+        }
+
+        $base = "SELECT r.*, m.name AS member_name, m.member_number, ih.name AS income_head_name,
                         p.name AS project_name, b.account_name AS bank_name
                  FROM receipts r
                  LEFT JOIN members m ON m.id = r.member_id
                  LEFT JOIN income_heads ih ON ih.id = r.income_head_id
                  LEFT JOIN projects p ON p.id = r.project_id
                  LEFT JOIN bank_accounts b ON b.id = r.bank_account_id
-                 WHERE r.association_id = ?
+                 {$where}
                  ORDER BY r.received_on DESC, r.id DESC";
-        $count = 'SELECT COUNT(*) FROM receipts r WHERE r.association_id = ?';
-        return $this->paginateQuery($base, $count, [$associationId], $page, $perPage);
+        $count = "SELECT COUNT(*) FROM receipts r LEFT JOIN members m ON m.id = r.member_id {$where}";
+        return $this->paginateQuery($base, $count, $params, $page, $perPage);
     }
 
     /** @return list<array<string,mixed>> */
