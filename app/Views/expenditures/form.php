@@ -1,9 +1,14 @@
 <?php $this->layout('layouts.app');
 /** @var array|null $expenditure */ /** @var list $heads */ /** @var list $projects */ /** @var list $bankAccounts */
 /** @var int $selectedProject */ /** @var string $selectedCategory */
+/** @var int|null $selectedHead */ /** @var string|null $selectedPaidOn */
 $exp = $expenditure ?? null;
+$selectedHead = $selectedHead ?? 0;
+$selectedPaidOn = $selectedPaidOn ?? null;
 $dCategory = (string) ($exp['category'] ?? ($selectedCategory ?? 'association'));
 $dMode = (string) ($exp['mode'] ?? 'cash');
+$dHead = (int) ($exp['expenditure_head_id'] ?? $selectedHead);
+$dPaidOn = (string) ($exp['paid_on'] ?? ($selectedPaidOn ?? date('Y-m-d')));
 $sel = static fn (string $field, $id, $default = 0) => (int) (old($field) !== '' ? old($field) : $default) === (int) $id ? 'selected' : '';
 $selCat = static fn ($c) => (string) old('category', $dCategory) === $c ? 'selected' : '';
 $selMode = static fn ($m) => (string) old('mode', $dMode) === $m ? 'selected' : '';
@@ -48,7 +53,7 @@ $backUrl = $backProject ? url('/projects/' . $backProject) : url('/expenditures'
                 <select id="expenditure_head_id" name="expenditure_head_id" class="form-select">
                     <option value="">— Select —</option>
                     <?php foreach ($heads as $h): ?>
-                        <option value="<?= (int) $h['id'] ?>" <?= $sel('expenditure_head_id', $h['id'], (int) ($exp['expenditure_head_id'] ?? 0)) ?>><?= e($h['name']) ?></option>
+                        <option value="<?= (int) $h['id'] ?>" <?= $sel('expenditure_head_id', $h['id'], $dHead) ?>><?= e($h['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -59,7 +64,7 @@ $backUrl = $backProject ? url('/projects/' . $backProject) : url('/expenditures'
             </div>
             <div>
                 <label for="paid_on" class="form-label">Paid on *</label>
-                <input type="date" id="paid_on" name="paid_on" value="<?= old('paid_on', $exp['paid_on'] ?? date('Y-m-d')) ?>" required class="form-input">
+                <input type="date" id="paid_on" name="paid_on" value="<?= old('paid_on', $dPaidOn) ?>" required class="form-input">
                 <?php if ($msg = error_for('paid_on')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
             </div>
             <div>
@@ -86,6 +91,7 @@ $backUrl = $backProject ? url('/projects/' . $backProject) : url('/expenditures'
         </div>
         <div class="flex gap-2 border-t border-gray-100 pt-4">
             <button type="submit" class="btn-primary"><?= $exp ? 'Update expenditure' : 'Save expenditure' ?></button>
+            <button type="submit" name="save_new" value="1" class="btn-secondary" title="Save and start another entry keeping category, project, head and date">Save &amp; add another</button>
             <a href="<?= e($backUrl) ?>" class="btn-secondary">Cancel</a>
         </div>
     </form>
