@@ -1,6 +1,7 @@
 <?php $this->layout('layouts.app');
-/** @var list $members */ /** @var list $incomeHeads */ /** @var list $projects */ /** @var list $bankAccounts */
+/** @var array|null $receipt */ /** @var list $members */ /** @var list $incomeHeads */ /** @var list $projects */ /** @var list $bankAccounts */
 /** @var array|null $demand */ /** @var int $demandId */ /** @var string $prefillAmount */ /** @var int $returnLedger */
+$receipt = $receipt ?? null;
 $demand = $demand ?? null;
 $demandId = $demandId ?? 0;
 $prefillAmount = $prefillAmount ?? '';
@@ -8,27 +9,32 @@ $returnLedger = $returnLedger ?? 0;
 $selectedIncomeHead = $selectedIncomeHead ?? 0;
 $demandPurposeName = $demandPurposeName ?? null;
 $cancelUrl = $returnLedger > 0 ? url('/members/' . $returnLedger . '/ledger') : url('/receipts');
+$action = $receipt ? url('/receipts/' . $receipt['id']) : url('/receipts');
+$heading = $receipt ? 'Edit Receipt' : 'Record Receipt';
+$dMode = (string) ($receipt['mode'] ?? 'cash');
+$dAmount = $prefillAmount !== '' ? $prefillAmount : (string) ($receipt['amount'] ?? '');
+$dReceivedOn = (string) ($receipt['received_on'] ?? date('Y-m-d'));
 $sel = static fn (string $field, $id, $default = 0) => (int) (old($field) !== '' ? old($field) : $default) === (int) $id ? 'selected' : '';
-$selMode = static fn ($m) => (string) old('mode', 'cash') === $m ? 'selected' : '';
+$selMode = static fn ($m) => (string) old('mode', $dMode) === $m ? 'selected' : '';
 ?>
 
 <div class="mb-6">
     <?php if ($returnLedger > 0): ?>
         <a href="<?= e($cancelUrl) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to member ledger</a>
     <?php endif; ?>
-    <h1 class="mt-1 text-2xl font-bold text-gray-900">Record Receipt</h1>
+    <h1 class="mt-1 text-2xl font-bold text-gray-900"><?= e($heading) ?></h1>
 </div>
 
 <div class="max-w-2xl card card-body">
     <?php if ($demand !== null): ?>
         <div class="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-200">
-            Recording against a <span class="font-semibold"><?= e($demandPurposeName ?? 'demand') ?></span> demand
+            <?= $receipt ? 'Linked to' : 'Recording against' ?> a <span class="font-semibold"><?= e($demandPurposeName ?? 'demand') ?></span> demand
             of <span class="font-semibold">₹ <?= money($demand['amount']) ?></span><?= !empty($demand['due_date']) ? ' due ' . e(format_date($demand['due_date'])) : '' ?>.
-            The amount is pre-filled with the outstanding balance — adjust it for a part payment.
+            <?= $receipt ? 'Member and project stay linked to this demand.' : 'The amount is pre-filled with the outstanding balance — adjust it for a part payment.' ?>
         </div>
     <?php endif; ?>
 
-    <form method="post" action="<?= e(url('/receipts')) ?>" class="space-y-5" novalidate>
+    <form method="post" action="<?= e($action) ?>" class="space-y-5" novalidate>
         <?= csrf_field() ?>
         <?php if ($demandId > 0): ?><input type="hidden" name="demand_id" value="<?= (int) $demandId ?>"><?php endif; ?>
         <?php if ($returnLedger > 0): ?><input type="hidden" name="return_ledger" value="<?= (int) $returnLedger ?>"><?php endif; ?>
@@ -64,7 +70,7 @@ $selMode = static fn ($m) => (string) old('mode', 'cash') === $m ? 'selected' : 
             </div>
             <div>
                 <label for="amount" class="form-label">Amount (₹) *</label>
-                <input type="number" step="0.01" min="0.01" id="amount" name="amount" value="<?= old('amount', $prefillAmount) ?>" required class="form-input">
+                <input type="number" step="0.01" min="0.01" id="amount" name="amount" value="<?= old('amount', $dAmount) ?>" required class="form-input">
                 <?php if ($msg = error_for('amount')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
             </div>
             <div>
@@ -86,16 +92,16 @@ $selMode = static fn ($m) => (string) old('mode', 'cash') === $m ? 'selected' : 
             </div>
             <div>
                 <label for="received_on" class="form-label">Received on *</label>
-                <input type="date" id="received_on" name="received_on" value="<?= old('received_on', date('Y-m-d')) ?>" required class="form-input">
+                <input type="date" id="received_on" name="received_on" value="<?= old('received_on', $dReceivedOn) ?>" required class="form-input">
                 <?php if ($msg = error_for('received_on')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
             </div>
             <div class="sm:col-span-2">
                 <label for="remarks" class="form-label">Remarks</label>
-                <input type="text" id="remarks" name="remarks" value="<?= old('remarks') ?>" class="form-input">
+                <input type="text" id="remarks" name="remarks" value="<?= old('remarks', $receipt['remarks'] ?? '') ?>" class="form-input">
             </div>
         </div>
         <div class="flex gap-2 border-t border-gray-100 pt-4">
-            <button type="submit" class="btn-primary">Save receipt</button>
+            <button type="submit" class="btn-primary"><?= $receipt ? 'Update receipt' : 'Save receipt' ?></button>
             <a href="<?= e($cancelUrl) ?>" class="btn-secondary">Cancel</a>
         </div>
     </form>

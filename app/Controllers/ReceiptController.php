@@ -24,12 +24,21 @@ final class ReceiptController extends Controller
     {
         $assocId = Auth::associationId();
         $page = (int) $request->input('page', 1);
-        $result = (new Receipt())->paginateForAssociation($assocId, $page, 20);
+        $search = trim((string) $request->input('q', ''));
+        $projectFilter = (string) $request->input('project_id', '');
+        [$from, $to] = $this->filterDates($request);
+
+        $result = (new Receipt())->paginateForAssociation($assocId, $page, 20, $search, $projectFilter, $from, $to);
 
         $this->view('receipts.index', [
-            'title'     => 'Receipts',
-            'receipts'  => $result['data'],
-            'paginator' => $result,
+            'title'         => 'Receipts',
+            'receipts'      => $result['data'],
+            'paginator'     => $result,
+            'projects'      => (new Project())->options($assocId),
+            'search'        => $search,
+            'projectFilter' => $projectFilter,
+            'from'          => $from,
+            'to'            => $to,
         ]);
         Session::clearFormState();
     }
@@ -114,35 +123,8 @@ final class ReceiptController extends Controller
     public function store(Request $request): void
     {
         $assocId = Auth::associationId();
-        $input = [
-            'member_id'      => $request->input('member_id') ?: null,
-            'income_head_id' => $request->input('income_head_id') ?: null,
-            'project_id'     => $request->input('project_id') ?: null,
-            'demand_id'      => $request->input('demand_id') ?: null,
-            'amount'         => (string) $request->input('amount', ''),
-            'mode'           => (string) $request->input('mode', 'cash'),
-            'bank_account_id' => $request->input('bank_account_id') ?: null,
-            'received_on'    => (string) $request->input('received_on', ''),
-            'remarks'        => (string) $request->input('remarks', ''),
-        ];
+        $input = $this->validatedInput($request);
         $returnLedger = (int) $request->input('return_ledger', 0);
-
-        $validator = Validator::make($input, [
-            'amount'      => 'required|decimal|min_val:0.01',
-            'mode'        => 'required|in:cash,fund_transfer',
-            'received_on' => 'required|date',
-            'remarks'     => 'max:500',
-        ]);
-        if ($validator->fails()) {
-            $this->withErrors($validator->errors(), $input);
-        }
-
-        // Fund transfers should reference a bank account.
-        if ($input['mode'] === 'fund_transfer' && $input['bank_account_id'] === null) {
-            $this->withErrors(['bank_account_id' => 'Select the bank account for a fund transfer.'], $input);
-        }
-
-        $this->assertTenant($assocId, $input);
 
         // A linked demand must belong to this association; align member/project.
         $demand = null;
@@ -184,6 +166,129 @@ final class ReceiptController extends Controller
             $this->redirect('/members/' . $returnLedger . '/ledger');
         }
         $this->redirect('/receipts');
+    }
+
+    public function edit(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $receipt = (new Receipt())->findForAssociation((int) $params['id'], $assocId);
+        if ($receipt === null) {
+            Response::notFound();
+        }
+
+        $demand = $receipt['demand_id'] ? (new Demand())->findForAssociation((int) $receipt['demand_id'], $assocId) : null;
+        $demandPurposeName = null;
+        if ($demand !== null) {
+            $dp = (new DemandPurpose())->find((int) ($demand['demand_purpose_id'] ?? 0));
+            $demandPurposeName = $dp['name'] ?? null;
+        }
+
+        $this->view('receipts.form', [
+            'title'              => 'Edit Receipt',
+            'receipt'            => $receipt,
+            'members'            => (new Member())->options($assocId),
+            'incomeHeads'        => (new Master('income-heads'))->activeForAssociation($assocId),
+            'projects'           => (new Project())->options($assocId),
+            'demandPurposeName'  => $demandPurposeName,
+            'bankAccounts'       => (new BankAccount())->options($assocId),
+            'selectedMember'     => (int) ($receipt['member_id'] ?? 0),
+            'selectedProject'    => (int) ($receipt['project_id'] ?? 0),
+            'selectedIncomeHead' => (int) ($receipt['income_head_id'] ?? 0),
+            'demand'             => $demand,
+            'demandId'           => (int) ($receipt['demand_id'] ?? 0),
+            'prefillAmount'      => '',
+            'returnLedger'       => 0,
+        ]);
+        Session::clearFormState();
+    }
+
+    public function update(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $receipt = (new Receipt())->findForAssociation((int) $params['id'], $assocId);
+        if ($receipt === null) {
+            Response::notFound();
+        }
+
+        $input = $this->validatedInput($request);
+
+        // A receipt's linked demand is fixed on edit; align member/project to it.
+        $demandId = $receipt['demand_id'] ? (int) $receipt['demand_id'] : 0;
+        if ($demandId > 0) {
+            $demand = (new Demand())->findForAssociation($demandId, $assocId);
+            if ($demand !== null) {
+                $input['member_id'] = (int) $demand['member_id'];
+                if ($demand['project_id']) {
+                    $input['project_id'] = (int) $demand['project_id'];
+                }
+            }
+        }
+
+        (new Receipt())->update((int) $receipt['id'], [
+            'member_id'       => $input['member_id'],
+            'income_head_id'  => $input['income_head_id'],
+            'project_id'      => $input['project_id'],
+            'amount'          => $input['amount'],
+            'mode'            => $input['mode'],
+            'bank_account_id' => $input['mode'] === 'fund_transfer' ? $input['bank_account_id'] : ($input['bank_account_id'] ?: null),
+            'received_on'     => $input['received_on'],
+            'remarks'         => $input['remarks'] ?: null,
+        ]);
+
+        if ($demandId > 0) {
+            (new Demand())->syncStatus($demandId);
+        }
+
+        $this->flash('success', 'Receipt updated.');
+        $this->redirect('/receipts');
+    }
+
+    /**
+     * Extract + validate the shared receipt form fields. Redirects back with
+     * errors on failure (never returns in that case).
+     *
+     * @return array<string,mixed>
+     */
+    private function validatedInput(Request $request): array
+    {
+        $assocId = Auth::associationId();
+        $input = [
+            'member_id'      => $request->input('member_id') ?: null,
+            'income_head_id' => $request->input('income_head_id') ?: null,
+            'project_id'     => $request->input('project_id') ?: null,
+            'demand_id'      => $request->input('demand_id') ?: null,
+            'amount'         => (string) $request->input('amount', ''),
+            'mode'           => (string) $request->input('mode', 'cash'),
+            'bank_account_id' => $request->input('bank_account_id') ?: null,
+            'received_on'    => (string) $request->input('received_on', ''),
+            'remarks'        => (string) $request->input('remarks', ''),
+        ];
+        $validator = Validator::make($input, [
+            'amount'      => 'required|decimal|min_val:0.01',
+            'mode'        => 'required|in:cash,fund_transfer',
+            'received_on' => 'required|date',
+            'remarks'     => 'max:500',
+        ]);
+        if ($validator->fails()) {
+            $this->withErrors($validator->errors(), $input);
+        }
+        if ($input['mode'] === 'fund_transfer' && $input['bank_account_id'] === null) {
+            $this->withErrors(['bank_account_id' => 'Select the bank account for a fund transfer.'], $input);
+        }
+        $this->assertTenant($assocId, $input);
+
+        return $input;
+    }
+
+    /** @return array{0:?string,1:?string} */
+    private function filterDates(Request $request): array
+    {
+        $from = (string) $request->input('from', '');
+        $to = (string) $request->input('to', '');
+        return [
+            $from !== '' && strtotime($from) ? $from : null,
+            $to !== '' && strtotime($to) ? $to : null,
+        ];
     }
 
     public function destroy(Request $request, array $params): void
