@@ -15,18 +15,38 @@ final class Expenditure extends Model
         'amount', 'paid_on', 'bank_account_id', 'mode', 'remarks', 'created_by',
     ];
 
-    /** @return array{data:list<array<string,mixed>>,total:int,page:int,perPage:int,pages:int} */
-    public function paginateForAssociation(int $associationId, int $page = 1, int $perPage = 20): array
+    /**
+     * @param int|string $projectFilter '' = all, 'none' = general (no project), or a project id
+     * @return array{data:list<array<string,mixed>>,total:int,page:int,perPage:int,pages:int}
+     */
+    public function paginateForAssociation(int $associationId, int $page = 1, int $perPage = 20, int|string $projectFilter = '', ?string $from = null, ?string $to = null): array
     {
+        $where = 'WHERE e.association_id = ?';
+        $params = [$associationId];
+        if ($projectFilter === 'none') {
+            $where .= ' AND e.project_id IS NULL';
+        } elseif ($projectFilter !== '' && (int) $projectFilter > 0) {
+            $where .= ' AND e.project_id = ?';
+            $params[] = (int) $projectFilter;
+        }
+        if ($from !== null && $from !== '') {
+            $where .= ' AND e.paid_on >= ?';
+            $params[] = $from;
+        }
+        if ($to !== null && $to !== '') {
+            $where .= ' AND e.paid_on <= ?';
+            $params[] = $to;
+        }
+
         $base = "SELECT e.*, eh.name AS head_name, p.name AS project_name, b.account_name AS bank_name
                  FROM expenditures e
                  LEFT JOIN expenditure_heads eh ON eh.id = e.expenditure_head_id
                  LEFT JOIN projects p ON p.id = e.project_id
                  LEFT JOIN bank_accounts b ON b.id = e.bank_account_id
-                 WHERE e.association_id = ?
+                 {$where}
                  ORDER BY e.paid_on DESC, e.id DESC";
-        $count = 'SELECT COUNT(*) FROM expenditures e WHERE e.association_id = ?';
-        return $this->paginateQuery($base, $count, [$associationId], $page, $perPage);
+        $count = "SELECT COUNT(*) FROM expenditures e {$where}";
+        return $this->paginateQuery($base, $count, $params, $page, $perPage);
     }
 
     /**

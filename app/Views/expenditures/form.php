@@ -10,13 +10,21 @@ $selMode = static fn ($m) => (string) old('mode', $dMode) === $m ? 'selected' : 
 $action = $exp ? url('/expenditures/' . $exp['id']) : url('/expenditures');
 $heading = $exp ? 'Edit Expenditure' : 'Record Expenditure';
 $showProj = (string) old('category', $dCategory) === 'project';
+$backProject = $backProject ?? null;
+$backUrl = $backProject ? url('/projects/' . $backProject) : url('/expenditures');
 ?>
 
-<h1 class="mb-6 text-2xl font-bold text-gray-900"><?= e($heading) ?></h1>
+<div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900"><?= e($heading) ?></h1>
+    <?php if ($backProject): ?>
+        <a href="<?= e($backUrl) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to project</a>
+    <?php endif; ?>
+</div>
 
 <div class="max-w-2xl card card-body">
     <form method="post" action="<?= e($action) ?>" class="space-y-5" novalidate>
         <?= csrf_field() ?>
+        <?php if ($backProject): ?><input type="hidden" name="back_project" value="<?= (int) $backProject ?>"><?php endif; ?>
         <div class="grid gap-5 sm:grid-cols-2">
             <div>
                 <label for="category" class="form-label">Category *</label>
@@ -78,7 +86,7 @@ $showProj = (string) old('category', $dCategory) === 'project';
         </div>
         <div class="flex gap-2 border-t border-gray-100 pt-4">
             <button type="submit" class="btn-primary"><?= $exp ? 'Update expenditure' : 'Save expenditure' ?></button>
-            <a href="<?= e(url('/expenditures')) ?>" class="btn-secondary">Cancel</a>
+            <a href="<?= e($backUrl) ?>" class="btn-secondary">Cancel</a>
         </div>
     </form>
 </div>

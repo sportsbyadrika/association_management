@@ -21,12 +21,20 @@ final class ExpenditureController extends Controller
     {
         $assocId = Auth::associationId();
         $page = (int) $request->input('page', 1);
-        $result = (new Expenditure())->paginateForAssociation($assocId, $page, 20);
+
+        $projectFilter = (string) $request->input('project_id', '');
+        [$from, $to] = $this->filterDates($request);
+
+        $result = (new Expenditure())->paginateForAssociation($assocId, $page, 20, $projectFilter, $from, $to);
 
         $this->view('expenditures.index', [
-            'title'        => 'Expenditure',
-            'expenditures' => $result['data'],
-            'paginator'    => $result,
+            'title'         => 'Expenditure',
+            'expenditures'  => $result['data'],
+            'paginator'     => $result,
+            'projects'      => (new Project())->options($assocId),
+            'projectFilter' => $projectFilter,
+            'from'          => $from,
+            'to'            => $to,
         ]);
         Session::clearFormState();
     }
@@ -35,6 +43,12 @@ final class ExpenditureController extends Controller
     {
         $assocId = Auth::associationId();
         $selectedProject = (int) $request->input('project_id', 0);
+        // When opened from a project page, remember it so the form can offer a
+        // "back to project" link and return there after saving.
+        $backProject = null;
+        if ($selectedProject > 0 && (new Project())->findForAssociation($selectedProject, $assocId) !== null) {
+            $backProject = $selectedProject;
+        }
         $this->view('expenditures.form', [
             'title'            => 'Record Expenditure',
             'expenditure'      => null,
@@ -43,6 +57,7 @@ final class ExpenditureController extends Controller
             'bankAccounts'     => (new BankAccount())->options($assocId),
             'selectedProject'  => $selectedProject,
             'selectedCategory' => $selectedProject > 0 ? 'project' : 'association',
+            'backProject'      => $backProject,
         ]);
         Session::clearFormState();
     }
@@ -66,6 +81,12 @@ final class ExpenditureController extends Controller
         ]);
 
         $this->flash('success', 'Expenditure recorded.');
+
+        // If the entry was raised from a project page, return there.
+        $backProject = (int) $request->input('back_project', 0);
+        if ($backProject > 0 && (new Project())->findForAssociation($backProject, $assocId) !== null) {
+            $this->redirect('/projects/' . $backProject);
+        }
         $this->redirect('/expenditures');
     }
 
@@ -162,6 +183,17 @@ final class ExpenditureController extends Controller
         (new Expenditure())->delete((int) $exp['id']);
         $this->flash('success', 'Expenditure deleted.');
         $this->redirect('/expenditures');
+    }
+
+    /** @return array{0:?string,1:?string} */
+    private function filterDates(Request $request): array
+    {
+        $from = (string) $request->input('from', '');
+        $to = (string) $request->input('to', '');
+        return [
+            $from !== '' && strtotime($from) ? $from : null,
+            $to !== '' && strtotime($to) ? $to : null,
+        ];
     }
 
     private function assertTenant(int $assocId, array $input): void

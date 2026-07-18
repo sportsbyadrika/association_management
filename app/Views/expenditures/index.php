@@ -1,4 +1,13 @@
-<?php $this->layout('layouts.app'); /** @var list $expenditures */ /** @var array $paginator */ ?>
+<?php $this->layout('layouts.app');
+/** @var list $expenditures */ /** @var array $paginator */
+/** @var list $projects */ /** @var string $projectFilter */ /** @var ?string $from */ /** @var ?string $to */
+$hasFilter = $projectFilter !== '' || $from || $to;
+$filterQs = http_build_query(array_filter([
+    'project_id' => $projectFilter,
+    'from'       => $from,
+    'to'         => $to,
+]));
+?>
 
 <div class="mb-6 flex items-center justify-between">
     <div>
@@ -7,6 +16,31 @@
     </div>
     <a href="<?= e(url('/expenditures/create')) ?>" class="btn-primary">+ Record Expenditure</a>
 </div>
+
+<form method="get" action="<?= e(url('/expenditures')) ?>" class="card card-body mb-6 grid grid-cols-1 gap-3 sm:grid-cols-4 sm:items-end">
+    <div>
+        <label for="project_id" class="form-label">Project</label>
+        <select id="project_id" name="project_id" class="form-select w-full">
+            <option value="">All expenditure</option>
+            <option value="none" <?= $projectFilter === 'none' ? 'selected' : '' ?>>Association (general)</option>
+            <?php foreach ($projects as $p): ?>
+                <option value="<?= (int) $p['id'] ?>" <?= $projectFilter === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div>
+        <label for="from" class="form-label">From</label>
+        <input type="date" id="from" name="from" value="<?= e($from ?? '') ?>" class="form-input w-full">
+    </div>
+    <div>
+        <label for="to" class="form-label">To</label>
+        <input type="date" id="to" name="to" value="<?= e($to ?? '') ?>" class="form-input w-full">
+    </div>
+    <div class="flex gap-2">
+        <button type="submit" class="btn-secondary">Filter</button>
+        <?php if ($hasFilter): ?><a href="<?= e(url('/expenditures')) ?>" class="btn-secondary">Clear</a><?php endif; ?>
+    </div>
+</form>
 
 <div class="card overflow-hidden">
     <div class="overflow-x-auto">
@@ -39,5 +73,5 @@
             </tbody>
         </table>
     </div>
-    <div class="p-4"><?php $baseUrl = url('/expenditures'); include dirname(__DIR__) . '/partials/pagination.php'; ?></div>
+    <div class="p-4"><?php $baseUrl = url('/expenditures' . ($filterQs ? '?' . $filterQs : '')); include dirname(__DIR__) . '/partials/pagination.php'; ?></div>
 </div>
