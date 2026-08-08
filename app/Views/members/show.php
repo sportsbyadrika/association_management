@@ -1,4 +1,6 @@
-<?php $this->layout('layouts.app'); /** @var array $member */ /** @var array $ledger */ ?>
+<?php $this->layout('layouts.app'); /** @var array $member */ /** @var array $ledger */ /** @var list $familyMembers */
+$familyMembers = $familyMembers ?? [];
+?>
 
 <div class="mb-6 flex items-center justify-between">
     <a href="<?= e(url('/members')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to members</a>
@@ -57,5 +59,50 @@
             </div>
         </div>
         <?php include dirname(__DIR__) . '/partials/ledger_table.php'; ?>
+    </div>
+</div>
+
+<div class="mt-8 card">
+    <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+        <div>
+            <h2 class="font-semibold text-gray-900">Family members</h2>
+            <p class="text-xs text-gray-500"><?= count($familyMembers) ?> recorded</p>
+        </div>
+        <a href="<?= e(url('/members/' . $member['id'] . '/family/create')) ?>" class="btn-primary btn-sm">+ Add Family Member</a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="table">
+            <thead><tr><th>Photo</th><th>Name</th><th>Type</th><th>Relation</th><th>Age</th><th>Gender</th><th>Mobile</th><th class="text-right">Actions</th></tr></thead>
+            <tbody>
+            <?php foreach ($familyMembers as $f): ?>
+                <tr>
+                    <td>
+                        <?php if (!empty($f['photo_path'])): ?>
+                            <img src="<?= e(url('/photo/family/' . $f['id'])) ?>" alt="" class="h-9 w-9 rounded-full object-cover ring-1 ring-gray-200">
+                        <?php else: ?>
+                            <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700"><?= e(strtoupper(substr($f['name'], 0, 1))) ?></span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="font-medium text-gray-900"><?= e($f['name']) ?></td>
+                    <td><?= e($f['type_name'] ?? '—') ?></td>
+                    <td><?= e($f['relation'] ?? '—') ?></td>
+                    <td><?= e($f['age'] ?? '—') ?></td>
+                    <td class="capitalize"><?= e($f['gender'] ?? '—') ?></td>
+                    <td><?= e($f['mobile'] ?? '—') ?></td>
+                    <td class="whitespace-nowrap text-right">
+                        <a href="<?= e(url('/family/' . $f['id'] . '/edit')) ?>" class="text-brand-700 hover:underline">Edit</a>
+                        <span class="text-gray-300">·</span>
+                        <form method="post" action="<?= e(url('/family/' . $f['id'] . '/delete')) ?>" class="inline" data-confirm="Remove this family member?">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="text-red-600 hover:underline">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if ($familyMembers === []): ?>
+                <tr><td colspan="8" class="text-center text-gray-400 py-8">No family members recorded yet.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </div>
