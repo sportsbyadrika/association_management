@@ -49,14 +49,37 @@ final class DashboardController extends Controller
         $stats['outstanding_optional'] = (float) ($split['optional'] ?? 0);
         $stats['outstanding'] = $stats['outstanding_mandatory'] + $stats['outstanding_optional'];
 
+        // Outstanding "Subscription" dues specifically (the Subscription purpose).
+        $stats['subscription_dues'] = (float) $db->fetchColumn(
+            "SELECT COALESCE(SUM(GREATEST(d.amount - COALESCE(r.paid, 0), 0)), 0)
+             FROM demands d
+             LEFT JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
+             LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
+                 ON r.demand_id = d.id
+             WHERE d.association_id = ? AND d.status IN ('pending', 'partial') AND dp.name = 'Subscription'",
+            [$assocId, $assocId]
+        );
+
+        // Active-member count broken down by member type.
+        $memberTypeCounts = $db->fetchAll(
+            "SELECT COALESCE(mt.name, 'Unspecified') AS type, COUNT(*) AS count
+             FROM members m
+             LEFT JOIN member_types mt ON mt.id = m.member_type_id
+             WHERE m.association_id = ? AND m.is_active = 1
+             GROUP BY m.member_type_id, mt.name
+             ORDER BY count DESC, type ASC",
+            [$assocId]
+        );
+
         $recentReceipts = (new Receipt())->paginateForAssociation($assocId, 1, 5)['data'];
         $projects = array_slice((new Project())->allWithType($assocId), 0, 5);
 
         $this->view('dashboard.index', [
-            'title'          => 'Dashboard',
-            'stats'          => $stats,
-            'recentReceipts' => $recentReceipts,
-            'projects'       => $projects,
+            'title'            => 'Dashboard',
+            'stats'            => $stats,
+            'memberTypeCounts' => $memberTypeCounts,
+            'recentReceipts'   => $recentReceipts,
+            'projects'         => $projects,
         ]);
     }
 }
