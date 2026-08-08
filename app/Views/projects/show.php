@@ -10,7 +10,7 @@ $renderMemberList = static function (array $list): void {
         <table class="table">
             <thead><tr>
                 <th>Member No.</th><th>Name</th>
-                <th class="text-right">Demand</th><th class="text-right">Collected</th><th class="text-right">Balance</th>
+                <th class="text-right">Due</th><th class="text-right">Collected</th><th class="text-right">Balance</th>
                 <th>Received On</th>
             </tr></thead>
             <tbody>
@@ -37,7 +37,7 @@ $renderMemberList = static function (array $list): void {
 <div class="mb-6 flex items-center justify-between">
     <a href="<?= e(url('/projects')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to projects</a>
     <div class="flex flex-wrap gap-2">
-        <a href="<?= e(url('/demands/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add demand</a>
+        <a href="<?= e(url('/demands/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add due</a>
         <a href="<?= e(url('/receipts/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add collection</a>
         <a href="<?= e(url('/expenditures/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add expenditure</a>
         <a href="<?= e(url('/projects/' . $project['id'] . '/ledger')) ?>" target="_blank" rel="noopener" class="btn-secondary btn-sm">Print Ledger</a>
@@ -95,7 +95,7 @@ $renderMemberList = static function (array $list): void {
             </div>
         </div>
 
-        <!-- Demand received / pending -->
+        <!-- Dues received / pending -->
         <div class="card" data-tabs>
             <div class="border-b border-gray-200 px-6 pt-4">
                 <div class="flex gap-6">
@@ -132,7 +132,7 @@ $renderMemberList = static function (array $list): void {
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($otherIncome === []): ?>
-                        <tr><td colspan="6" class="text-center text-gray-400 py-6">No other income recorded. Use <span class="font-medium">Add collection</span> without linking a member demand.</td></tr>
+                        <tr><td colspan="6" class="text-center text-gray-400 py-6">No other income recorded. Use <span class="font-medium">Add collection</span> without linking a member due.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>

@@ -9,6 +9,7 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Models\Association;
+use App\Models\FamilyMember;
 use App\Models\Member;
 use App\Models\ProjectMilestone;
 use App\Services\ImageUploader;
@@ -84,6 +85,18 @@ final class PhotoController extends Controller
                 return null;
             }
             return $member['photo_path'] ?: null;
+        }
+
+        if ($type === 'family') {
+            $family = (new FamilyMember())->findForAssociation($id, $assocId);
+            if ($family === null) {
+                return null;
+            }
+            // A member may view their own family members' photos.
+            if (Auth::role() === 'member' && (int) (Auth::user()['member_id'] ?? 0) !== (int) $family['member_id']) {
+                return null;
+            }
+            return $family['photo_path'] ?: null;
         }
 
         if ($type === 'milestone') {

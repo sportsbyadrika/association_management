@@ -84,6 +84,7 @@ final class MemberController extends Controller
             'title'  => $member['name'],
             'member' => $member,
             'ledger' => $ledger,
+            'familyMembers' => (new \App\Models\FamilyMember())->forMember((int) $member['id']),
         ]);
     }
 

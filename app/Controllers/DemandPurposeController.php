@@ -18,7 +18,7 @@ final class DemandPurposeController extends Controller
     {
         $assocId = Auth::associationId();
         $this->view('demand_purposes.index', [
-            'title' => 'Demand Purposes',
+            'title' => 'Due Purposes',
             'items' => (new DemandPurpose())->allForAssociationOrdered($assocId),
         ]);
         Session::clearFormState();
@@ -26,7 +26,7 @@ final class DemandPurposeController extends Controller
 
     public function create(Request $request): void
     {
-        $this->view('demand_purposes.form', ['title' => 'Add Demand Purpose', 'item' => null]);
+        $this->view('demand_purposes.form', ['title' => 'Add Due Purpose', 'item' => null]);
         Session::clearFormState();
     }
 
@@ -35,7 +35,7 @@ final class DemandPurposeController extends Controller
         $data = $this->validated($request);
         $data['association_id'] = Auth::associationId();
         (new DemandPurpose())->create($data);
-        $this->flash('success', 'Demand purpose created.');
+        $this->flash('success', 'Due purpose created.');
         $this->redirect('/masters/demand-purposes');
     }
 
@@ -45,7 +45,7 @@ final class DemandPurposeController extends Controller
         if ($item === null) {
             Response::notFound();
         }
-        $this->view('demand_purposes.form', ['title' => 'Edit Demand Purpose', 'item' => $item]);
+        $this->view('demand_purposes.form', ['title' => 'Edit Due Purpose', 'item' => $item]);
         Session::clearFormState();
     }
 
@@ -58,7 +58,7 @@ final class DemandPurposeController extends Controller
             Response::notFound();
         }
         $model->update((int) $item['id'], $this->validated($request));
-        $this->flash('success', 'Demand purpose updated.');
+        $this->flash('success', 'Due purpose updated.');
         $this->redirect('/masters/demand-purposes');
     }
 
@@ -71,7 +71,7 @@ final class DemandPurposeController extends Controller
             Response::notFound();
         }
         $model->toggleActive((int) $item['id'], $assocId);
-        $this->flash('success', 'Demand purpose status updated.');
+        $this->flash('success', 'Due purpose status updated.');
         $this->redirect('/masters/demand-purposes');
     }
 

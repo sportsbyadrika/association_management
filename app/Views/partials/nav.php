@@ -14,7 +14,7 @@ $finance = [
     'id'       => 'financeMenu',
     'prefixes' => ['/demands', '/receipts', '/expenditures'],
     'items'    => [
-        ['Demands', '/demands'],
+        ['Dues', '/demands'],
         ['Receipts', '/receipts'],
         ['Expenditure', '/expenditures'],
     ],
@@ -32,6 +32,7 @@ if ($role === 'super_admin') {
         ['type' => 'link', 'label' => 'Members', 'href' => '/members', 'prefix' => '/members'],
         $finance,
         ['type' => 'link', 'label' => 'Projects', 'href' => '/projects', 'prefix' => '/projects'],
+        ['type' => 'link', 'label' => 'Gifts', 'href' => '/gifts', 'prefix' => '/gifts'],
         ['type' => 'link', 'label' => 'Masters', 'href' => '/masters/member-types', 'prefix' => '/masters', 'extra' => ['/bank-accounts']],
         ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
     ];
@@ -41,6 +42,7 @@ if ($role === 'super_admin') {
         ['type' => 'link', 'label' => 'Members', 'href' => '/members', 'prefix' => '/members'],
         $finance,
         ['type' => 'link', 'label' => 'Projects', 'href' => '/projects', 'prefix' => '/projects'],
+        ['type' => 'link', 'label' => 'Gifts', 'href' => '/gifts', 'prefix' => '/gifts'],
         ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
     ];
 } elseif ($role === 'member') {

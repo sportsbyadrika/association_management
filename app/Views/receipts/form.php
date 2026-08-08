@@ -28,9 +28,9 @@ $selMode = static fn ($m) => (string) old('mode', $dMode) === $m ? 'selected' : 
 <div class="max-w-2xl card card-body">
     <?php if ($demand !== null): ?>
         <div class="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-200">
-            <?= $receipt ? 'Linked to' : 'Recording against' ?> a <span class="font-semibold"><?= e($demandPurposeName ?? 'demand') ?></span> demand
-            of <span class="font-semibold">₹ <?= money($demand['amount']) ?></span><?= !empty($demand['due_date']) ? ' due ' . e(format_date($demand['due_date'])) : '' ?>.
-            <?= $receipt ? 'Member and project stay linked to this demand.' : 'The amount is pre-filled with the outstanding balance — adjust it for a part payment.' ?>
+            <?= $receipt ? 'Linked to' : 'Recording against' ?> a <span class="font-semibold"><?= e($demandPurposeName ?? 'due') ?></span> due
+            of <span class="font-semibold">₹ <?= money($demand['amount']) ?></span><?= !empty($demand['due_date']) ? ' payable by ' . e(format_date($demand['due_date'])) : '' ?>.
+            <?= $receipt ? 'Member and project stay linked to this due.' : 'The amount is pre-filled with the outstanding balance — adjust it for a part payment.' ?>
         </div>
     <?php endif; ?>
 

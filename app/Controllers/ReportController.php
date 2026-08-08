@@ -76,7 +76,7 @@ final class ReportController extends Controller
         ], $ledger['rows']);
 
         $summary = [
-            'Total demanded' => number_format($ledger['total_demand'], 2),
+            'Total dues' => number_format($ledger['total_demand'], 2),
             'Total paid'     => number_format($ledger['total_paid'], 2),
             'Balance'        => number_format($ledger['balance'], 2),
         ];
@@ -292,7 +292,7 @@ final class ReportController extends Controller
             }
 
             if ($format === 'csv' || $format === 'pdf') {
-                $columns = ['Sl No.', 'Member No.', 'Name', 'Total Demand', 'Collected', 'Balance', 'Last Received'];
+                $columns = ['Sl No.', 'Member No.', 'Name', 'Total Dues', 'Collected', 'Balance', 'Last Received'];
                 $data = [];
                 $sl = 0;
                 foreach ($rows as $r) {
@@ -312,7 +312,7 @@ final class ReportController extends Controller
                     'Date range' => $rangeLabel,
                 ];
                 $summary = [
-                    'Total demand' => number_format($totals['demand'], 2),
+                    'Total dues' => number_format($totals['demand'], 2),
                     'Collected'    => number_format($totals['collected'], 2),
                     'Balance'      => number_format($totals['balance'], 2),
                 ];
@@ -350,7 +350,7 @@ final class ReportController extends Controller
         }
 
         if ($format === 'csv' || $format === 'pdf') {
-            $columns = ['Sl No.', 'Project', 'Members', 'Total Demand', 'Collections', 'Collected', 'Pending', 'Balance'];
+            $columns = ['Sl No.', 'Project', 'Members', 'Total Dues', 'Collections', 'Collected', 'Pending', 'Balance'];
             $data = [];
             $sl = 0;
             foreach ($rows as $r) {
@@ -370,7 +370,7 @@ final class ReportController extends Controller
                 'Date range' => $rangeLabel,
             ];
             $summary = [
-                'Total demand' => number_format($totals['demand'], 2),
+                'Total dues' => number_format($totals['demand'], 2),
                 'Collected'    => number_format($totals['collected'], 2),
                 'Balance'      => number_format($totals['balance'], 2),
             ];

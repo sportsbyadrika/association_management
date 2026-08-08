@@ -15,7 +15,9 @@ use App\Controllers\DashboardController;
 use App\Controllers\DemandController;
 use App\Controllers\DemandPurposeController;
 use App\Controllers\ExpenditureController;
+use App\Controllers\FamilyMemberController;
 use App\Controllers\FinancialYearController;
+use App\Controllers\GiftController;
 use App\Controllers\HomeController;
 use App\Controllers\MasterController;
 use App\Controllers\MemberController;
@@ -95,6 +97,22 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->post('/members/{id}', [MemberController::class, 'update']);
     $router->post('/members/{id}/delete', [MemberController::class, 'destroy']);
     $router->get('/members/{id}/ledger', [MemberController::class, 'ledger']);
+
+    // Family members (sub-records of a member).
+    $router->get('/members/{memberId}/family/create', [FamilyMemberController::class, 'create']);
+    $router->post('/members/{memberId}/family', [FamilyMemberController::class, 'store']);
+    $router->get('/family/{id}/edit', [FamilyMemberController::class, 'edit']);
+    $router->post('/family/{id}', [FamilyMemberController::class, 'update']);
+    $router->post('/family/{id}/delete', [FamilyMemberController::class, 'destroy']);
+
+    // Gifts (in = donations received, out = gifts given).
+    $router->get('/gifts', [GiftController::class, 'index']);
+    $router->get('/gifts/create', [GiftController::class, 'create']);
+    $router->post('/gifts', [GiftController::class, 'store']);
+    $router->get('/gifts/{id}', [GiftController::class, 'show']);
+    $router->get('/gifts/{id}/edit', [GiftController::class, 'edit']);
+    $router->post('/gifts/{id}', [GiftController::class, 'update']);
+    $router->post('/gifts/{id}/delete', [GiftController::class, 'destroy']);
 
     // Demands (bulk raise: details + member selection -> confirm -> create)
     $router->get('/demands', [DemandController::class, 'index']);

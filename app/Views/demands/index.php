@@ -6,10 +6,10 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
 
 <div class="mb-6 flex items-center justify-between">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">Demands</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Dues</h1>
         <p class="mt-1 text-sm text-gray-500">Charges raised against members.</p>
     </div>
-    <a href="<?= e(url('/demands/create')) ?>" class="btn-primary">+ Raise Demand</a>
+    <a href="<?= e(url('/demands/create')) ?>" class="btn-primary">+ Raise Due</a>
 </div>
 
 <div class="card">
@@ -38,7 +38,7 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
             <a href="<?= e(url('/demands')) ?>" class="btn-secondary">Reset</a>
         </form>
         <?php if ($financialYears === []): ?>
-            <p class="mt-2 text-xs text-amber-600">Tip: define financial years under Masters → Financial Year to filter demands by year.</p>
+            <p class="mt-2 text-xs text-amber-600">Tip: define financial years under Masters → Financial Year to filter dues by year.</p>
         <?php endif; ?>
     </div>
 
@@ -91,7 +91,7 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
                 </tr>
             <?php endforeach; ?>
             <?php if ($demands === []): ?>
-                <tr><td colspan="9" class="text-center text-gray-400 py-8">No demands match your filters.</td></tr>
+                <tr><td colspan="9" class="text-center text-gray-400 py-8">No dues match your filters.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>

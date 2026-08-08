@@ -10,7 +10,7 @@ $qs = 'purpose_id=' . $purposeId . '&fy=' . urlencode($fyValue);
     <div>
         <a href="<?= e(url('/reports')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Reports</a>
         <h1 class="mt-1 text-2xl font-bold text-gray-900">Purpose Ledger</h1>
-        <p class="mt-1 text-sm text-gray-500">Project-wise demand, collection and balance for a demand purpose.</p>
+        <p class="mt-1 text-sm text-gray-500">Project-wise dues, collection and balance for a due purpose.</p>
     </div>
     <div class="flex gap-2">
         <a href="<?= e(url('/reports/purpose-ledger?' . $qs . '&format=csv')) ?>" class="btn-secondary btn-sm">CSV</a>
@@ -46,7 +46,7 @@ $qs = 'purpose_id=' . $purposeId . '&fy=' . urlencode($fyValue);
 </form>
 
 <div class="mb-4 grid gap-4 sm:grid-cols-3">
-    <div class="card card-body"><p class="text-sm text-gray-500">Total demand</p><p class="mt-1 text-xl font-bold text-gray-900">₹ <?= money($totals['demand']) ?></p></div>
+    <div class="card card-body"><p class="text-sm text-gray-500">Total dues</p><p class="mt-1 text-xl font-bold text-gray-900">₹ <?= money($totals['demand']) ?></p></div>
     <div class="card card-body"><p class="text-sm text-gray-500">Collected</p><p class="mt-1 text-xl font-bold text-brand-700">₹ <?= money($totals['collected']) ?></p></div>
     <div class="card card-body"><p class="text-sm text-gray-500">Balance</p><p class="mt-1 text-xl font-bold <?= $totals['balance'] > 0 ? 'text-amber-600' : 'text-brand-700' ?>">₹ <?= money($totals['balance']) ?></p></div>
 </div>
@@ -56,7 +56,7 @@ $qs = 'purpose_id=' . $purposeId . '&fy=' . urlencode($fyValue);
         <table class="table">
             <thead><tr>
                 <th>Sl No.</th><th>Project</th>
-                <th class="text-right">Members</th><th class="text-right">Total Demand</th>
+                <th class="text-right">Members</th><th class="text-right">Total Dues</th>
                 <th class="text-right">Collections</th><th class="text-right">Collected</th>
                 <th class="text-right">Pending</th><th class="text-right">Balance</th>
                 <th class="text-right">List</th>
@@ -85,7 +85,7 @@ $qs = 'purpose_id=' . $purposeId . '&fy=' . urlencode($fyValue);
                 </tr>
             <?php endforeach; ?>
             <?php if ($rows === []): ?>
-                <tr><td colspan="9" class="text-center text-gray-400 py-8">No demands for this purpose<?= $selectedFy ? ' in ' . e($selectedFy['label']) : '' ?>.</td></tr>
+                <tr><td colspan="9" class="text-center text-gray-400 py-8">No dues for this purpose<?= $selectedFy ? ' in ' . e($selectedFy['label']) : '' ?>.</td></tr>
             <?php endif; ?>
             </tbody>
             <?php if ($rows !== []): ?>

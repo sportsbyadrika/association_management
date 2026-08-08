@@ -95,7 +95,7 @@ final class ProjectController extends Controller
         $spent = $model->spent((int) $project['id']);
         $breakdown = $this->demandBreakdown((int) $project['id'], $assocId);
 
-        $columns = ['Sl No.', 'Member No.', 'Name', 'Demand', 'Collected', 'Balance', 'Status', 'Received On'];
+        $columns = ['Sl No.', 'Member No.', 'Name', 'Due', 'Collected', 'Balance', 'Status', 'Received On'];
         $rows = [];
         $sl = 0;
         foreach ($breakdown['all'] as $e) {
@@ -160,7 +160,7 @@ final class ProjectController extends Controller
         $memberCollected = $breakdown['total_received'];
         $summary = [
             'Target'        => number_format((float) $project['target_amount'], 2),
-            'Demanded'      => number_format($breakdown['total_demanded'], 2),
+            'Dues'      => number_format($breakdown['total_demanded'], 2),
             'Member Coll.'  => number_format($memberCollected, 2),
             'Other Income'  => number_format($otherIncomeTotal, 2),
             'Total Income'  => number_format($collected, 2),
@@ -176,7 +176,7 @@ final class ProjectController extends Controller
             $meta,
             $summary,
             [$incomeSection, $expenditureSection],
-            'Member Demands & Collections'
+            'Member Dues & Collections'
         );
     }
 

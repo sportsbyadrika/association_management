@@ -5,8 +5,8 @@
 
 <div class="mb-6 flex items-center justify-between">
     <div>
-        <h2 class="text-lg font-semibold text-gray-900">Demand Purposes</h2>
-        <p class="mt-1 text-sm text-gray-500">Categories for demands. <span class="font-medium text-red-600">Mandatory</span> and <span class="font-medium text-sky-600">optional</span> purposes are split separately in the dashboard's outstanding dues.</p>
+        <h2 class="text-lg font-semibold text-gray-900">Due Purposes</h2>
+        <p class="mt-1 text-sm text-gray-500">Categories for dues. <span class="font-medium text-red-600">Mandatory</span> and <span class="font-medium text-sky-600">optional</span> purposes are split separately in the dashboard's outstanding dues.</p>
     </div>
     <a href="<?= e(url('/masters/demand-purposes/create')) ?>" class="btn-primary">+ Add Purpose</a>
 </div>
@@ -44,7 +44,7 @@
                 </tr>
             <?php endforeach; ?>
             <?php if ($items === []): ?>
-                <tr><td colspan="4" class="text-center text-gray-400 py-8">No demand purposes yet.</td></tr>
+                <tr><td colspan="4" class="text-center text-gray-400 py-8">No due purposes yet.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>
