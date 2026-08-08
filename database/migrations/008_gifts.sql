@@ -1,6 +1,9 @@
 -- 008_gifts.sql
 -- Gift type master + gifts tracker (in = donations received, out = gifts given).
--- Column types mirror the existing migrations exactly so foreign keys match.
+--
+-- NOTE: No foreign-key constraints are declared (see 007 for the rationale).
+-- Referential integrity is enforced in the application layer; indexes are kept
+-- for join/lookup performance.
 
 CREATE TABLE IF NOT EXISTS gift_types (
     id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -11,9 +14,7 @@ CREATE TABLE IF NOT EXISTS gift_types (
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    KEY idx_gt_association (association_id),
-    CONSTRAINT fk_gt_association FOREIGN KEY (association_id)
-        REFERENCES associations (id) ON DELETE CASCADE ON UPDATE CASCADE
+    KEY idx_gt_association (association_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS gifts (
@@ -33,13 +34,7 @@ CREATE TABLE IF NOT EXISTS gifts (
     PRIMARY KEY (id),
     KEY idx_gift_association (association_id),
     KEY idx_gift_type (gift_type_id),
-    KEY idx_gift_member (member_id),
-    CONSTRAINT fk_gift_association FOREIGN KEY (association_id)
-        REFERENCES associations (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_gift_type FOREIGN KEY (gift_type_id)
-        REFERENCES gift_types (id) ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT fk_gift_member FOREIGN KEY (member_id)
-        REFERENCES members (id) ON DELETE SET NULL ON UPDATE CASCADE
+    KEY idx_gift_member (member_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Seed default gift types for existing associations.

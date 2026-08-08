@@ -1,6 +1,13 @@
 -- 007_family_members.sql
 -- Family member type master + family member sub-records (attached to a member).
--- Column types mirror the existing migrations exactly so foreign keys match.
+--
+-- NOTE: These tables intentionally do NOT declare foreign-key constraints.
+-- Some MySQL builds reject FKs when the FK column's declared type does not
+-- byte-for-byte match the referenced column (e.g. display-width differences on
+-- associations.id / members.id), producing errno 150. Referential integrity is
+-- enforced in the application layer (tenant checks on every write, and members
+-- are soft-deleted so family rows are never orphaned). Indexes are kept for
+-- join/lookup performance.
 
 CREATE TABLE IF NOT EXISTS family_member_types (
     id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -11,9 +18,7 @@ CREATE TABLE IF NOT EXISTS family_member_types (
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    KEY idx_fmt_association (association_id),
-    CONSTRAINT fk_fmt_association FOREIGN KEY (association_id)
-        REFERENCES associations (id) ON DELETE CASCADE ON UPDATE CASCADE
+    KEY idx_fmt_association (association_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS family_members (
@@ -37,13 +42,7 @@ CREATE TABLE IF NOT EXISTS family_members (
     PRIMARY KEY (id),
     KEY idx_fm_association (association_id),
     KEY idx_fm_member (member_id),
-    KEY idx_fm_type (family_member_type_id),
-    CONSTRAINT fk_fm_association FOREIGN KEY (association_id)
-        REFERENCES associations (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_fm_member FOREIGN KEY (member_id)
-        REFERENCES members (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_fm_type FOREIGN KEY (family_member_type_id)
-        REFERENCES family_member_types (id) ON DELETE SET NULL ON UPDATE CASCADE
+    KEY idx_fm_type (family_member_type_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Seed default family member types for existing associations.
