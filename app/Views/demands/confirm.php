@@ -8,13 +8,13 @@ foreach ($members as $m) {
     $initialTotal += (float) ($memberAmounts[(int) $m['id']] ?? $defaultEach);
 }
 $invalidIds = $invalidIds ?? [];
-$purposeLabel = $purposeName ?? 'Demand';
+$purposeLabel = $purposeName ?? 'Due';
 ?>
 
 <div class="mb-6">
     <a href="<?= e(url('/demands/create')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to edit</a>
-    <h1 class="mt-1 text-2xl font-bold text-gray-900">Confirm Demands</h1>
-    <p class="mt-1 text-sm text-gray-500">Review the details. You can fine-tune any member's amount before confirming — one demand is created per member.</p>
+    <h1 class="mt-1 text-2xl font-bold text-gray-900">Confirm Dues</h1>
+    <p class="mt-1 text-sm text-gray-500">Review the details. You can fine-tune any member's amount before confirming — one due is created per member.</p>
 </div>
 
 <div class="card card-body">
@@ -49,7 +49,7 @@ $purposeLabel = $purposeName ?? 'Demand';
                 <p class="mt-1 font-semibold text-gray-900"><?= $count ?></p>
             </div>
             <div class="rounded-lg bg-gray-50 p-4">
-                <p class="text-xs uppercase tracking-wide text-gray-500">Total to be demanded</p>
+                <p class="text-xs uppercase tracking-wide text-gray-500">Total to be raised</p>
                 <p class="mt-1 font-semibold text-gray-900">₹ <span data-amount-total><?= money($initialTotal) ?></span></p>
             </div>
         </div>
@@ -89,7 +89,7 @@ $purposeLabel = $purposeName ?? 'Demand';
         </div>
 
         <div class="mt-6 flex items-center gap-2 border-t border-gray-100 pt-5">
-            <button type="submit" class="btn-primary">Confirm &amp; raise <?= $count ?> demand<?= $count === 1 ? '' : 's' ?></button>
+            <button type="submit" class="btn-primary">Confirm &amp; raise <?= $count ?> due<?= $count === 1 ? '' : 's' ?></button>
             <a href="<?= e(url('/demands/create')) ?>" class="btn-secondary">Cancel</a>
         </div>
     </form>

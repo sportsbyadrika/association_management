@@ -54,7 +54,7 @@ final class DemandController extends Controller
         );
 
         $this->view('demands.index', [
-            'title'          => 'Demands',
+            'title'          => 'Dues',
             'demands'        => $result['data'],
             'paginator'      => $result,
             'search'         => $search,
@@ -98,7 +98,7 @@ final class DemandController extends Controller
         }
 
         $this->view('demands.form', [
-            'title'           => 'Raise Demand',
+            'title'           => 'Raise Due',
             'members'         => (new Member())->selectableForAssociation($assocId),
             'memberTypes'     => (new \App\Models\Master('member-types'))->activeForAssociation($assocId),
             'purposes'        => $purposes,
@@ -134,7 +134,7 @@ final class DemandController extends Controller
         $assocId = Auth::associationId();
 
         $purpose = (new DemandPurpose())->findForAssociation((int) $details['demand_purpose_id'], $assocId);
-        $purposeName = $purpose['name'] ?? 'Demand';
+        $purposeName = $purpose['name'] ?? 'Due';
 
         $projectName = null;
         if ($details['project_id'] !== null) {
@@ -143,7 +143,7 @@ final class DemandController extends Controller
         }
 
         $this->view('demands.confirm', [
-            'title'         => 'Confirm Demands',
+            'title'         => 'Confirm Dues',
             'details'       => $details,
             'members'       => $members,
             'purposeName'   => $purposeName,
@@ -209,7 +209,7 @@ final class DemandController extends Controller
             return $n;
         });
 
-        $this->flash('success', "{$count} demand(s) raised — total ₹" . number_format($total, 2) . '.');
+        $this->flash('success', "{$count} due(s) raised — total ₹" . number_format($total, 2) . '.');
         $this->redirect('/demands');
     }
 
@@ -225,10 +225,10 @@ final class DemandController extends Controller
             Response::notFound();
         }
         if ($demand['status'] === 'cancelled') {
-            $this->flash('error', 'A cancelled demand cannot be marked as paid.');
+            $this->flash('error', 'A cancelled due cannot be marked as paid.');
         } else {
             (new Demand())->update((int) $demand['id'], ['status' => 'paid']);
-            $this->flash('success', 'Demand marked as paid.');
+            $this->flash('success', 'Due marked as paid.');
         }
         $this->back('/demands');
     }
@@ -247,17 +247,17 @@ final class DemandController extends Controller
             Response::notFound();
         }
         if ($demand['status'] !== 'paid') {
-            $this->flash('error', 'Only a paid demand can be reopened.');
+            $this->flash('error', 'Only a paid due can be reopened.');
             $this->back('/demands');
         }
         $paid = (new Receipt())->totalForDemand((int) $demand['id']);
         if ($paid >= (float) $demand['amount']) {
-            $this->flash('warning', 'This demand is fully covered by receipts — delete the receipt(s) to reopen it.');
+            $this->flash('warning', 'This due is fully covered by receipts — delete the receipt(s) to reopen it.');
             $this->back('/demands');
         }
         // Manually marked paid: recompute from receipts (partial or pending).
         $demandModel->syncStatus((int) $demand['id']);
-        $this->flash('success', 'Demand reopened.');
+        $this->flash('success', 'Due reopened.');
         $this->back('/demands');
     }
 
@@ -270,7 +270,7 @@ final class DemandController extends Controller
         }
         // Cancel rather than hard-delete to preserve history.
         (new Demand())->update((int) $demand['id'], ['status' => 'cancelled']);
-        $this->flash('success', 'Demand cancelled.');
+        $this->flash('success', 'Due cancelled.');
         $this->back('/demands');
     }
 

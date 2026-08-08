@@ -9,9 +9,9 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
 ?>
 
 <div class="mb-6">
-    <a href="<?= e(url('/demands')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to demands</a>
-    <h1 class="mt-1 text-2xl font-bold text-gray-900">Raise Demand</h1>
-    <p class="mt-1 text-sm text-gray-500">Set the demand details, pick one or more members, then review before saving.</p>
+    <a href="<?= e(url('/demands')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to dues</a>
+    <h1 class="mt-1 text-2xl font-bold text-gray-900">Raise Due</h1>
+    <p class="mt-1 text-sm text-gray-500">Set the due details, pick one or more members, then review before saving.</p>
 </div>
 
 <div class="card card-body">
@@ -21,9 +21,9 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
         <?= csrf_field() ?>
         <div class="grid gap-6 lg:grid-cols-5">
 
-            <!-- Left: demand details -->
+            <!-- Left: due details -->
             <div class="lg:col-span-2 space-y-5">
-                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Demand details</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Due details</h2>
                 <div>
                     <label for="demand_purpose_id" class="form-label">Purpose *</label>
                     <select id="demand_purpose_id" name="demand_purpose_id" required class="form-select">
@@ -38,7 +38,7 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
                     </select>
                     <?php if ($m = error_for('demand_purpose_id')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
                     <?php if ($purposes === []): ?>
-                        <p class="mt-1 text-xs text-amber-600">Add purposes under Masters → Demand Purpose first.</p>
+                        <p class="mt-1 text-xs text-amber-600">Add purposes under Masters → Due Purpose first.</p>
                     <?php endif; ?>
                 </div>
                 <div>
@@ -59,7 +59,7 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
                             <option value="<?= (int) $mt['id'] ?>" <?= (string) old('member_type_filter') === (string) $mt['id'] ? 'selected' : '' ?>><?= e($mt['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <p class="mt-1 text-xs text-gray-400">Filters the member list on the right — not stored on the demand.</p>
+                    <p class="mt-1 text-xs text-gray-400">Filters the member list on the right — not stored on the due.</p>
                 </div>
                 <div>
                     <label for="amount" class="form-label">Amount per member (₹) *</label>
@@ -87,7 +87,7 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
                 <div data-exclude-wrap class="mb-3 rounded-lg bg-amber-50 px-3 py-2" style="display:<?= (string) $curProject !== '' && (string) $curProject !== '0' ? 'block' : 'none' ?>">
                     <label class="flex items-center gap-2 text-sm text-amber-800">
                         <input type="checkbox" data-exclude-existing class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
-                        Exclude members who already have a demand for the selected project
+                        Exclude members who already have a due for the selected project
                         <span data-excluded-count class="ml-1 font-medium"></span>
                     </label>
                 </div>
@@ -126,7 +126,7 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
         </div>
 
         <div class="mt-6 flex items-center gap-2 border-t border-gray-100 pt-5">
-            <button type="submit" class="btn-primary">Review demands &rarr;</button>
+            <button type="submit" class="btn-primary">Review dues &rarr;</button>
             <a href="<?= e(url('/demands')) ?>" class="btn-secondary">Cancel</a>
         </div>
     </form>

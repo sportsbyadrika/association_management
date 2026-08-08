@@ -15,14 +15,14 @@
 
     <div class="card card-body">
         <h2 class="font-semibold text-gray-900">Member ledger</h2>
-        <p class="mt-1 text-sm text-gray-500">Per-member demands, receipts and balance.</p>
+        <p class="mt-1 text-sm text-gray-500">Per-member dues, receipts and balance.</p>
         <p class="mt-3 text-xs text-gray-400">Open any member and use the ledger page's CSV/PDF buttons.</p>
         <a href="<?= e(url('/members')) ?>" class="btn-secondary btn-sm mt-3">Go to members</a>
     </div>
 
     <div class="card card-body">
         <h2 class="font-semibold text-gray-900">Purpose ledger</h2>
-        <p class="mt-1 text-sm text-gray-500">Per-member demand, collection &amp; balance for a purpose (e.g. Subscription), with a financial-year filter.</p>
+        <p class="mt-1 text-sm text-gray-500">Per-member dues, collection &amp; balance for a purpose (e.g. Subscription), with a financial-year filter.</p>
         <a href="<?= e(url('/reports/purpose-ledger')) ?>" class="btn-primary btn-sm mt-4">Open</a>
     </div>
 

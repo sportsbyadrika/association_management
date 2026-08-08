@@ -131,7 +131,7 @@ final class ReceiptController extends Controller
         if ($input['demand_id'] !== null) {
             $demand = (new Demand())->findForAssociation((int) $input['demand_id'], $assocId);
             if ($demand === null) {
-                $this->withErrors(['amount' => 'The linked demand is invalid.'], $input);
+                $this->withErrors(['amount' => 'The linked due is invalid.'], $input);
             }
             $input['member_id'] = (int) $demand['member_id'];
             if ($demand['project_id']) {

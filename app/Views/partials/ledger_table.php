@@ -10,13 +10,13 @@ $statusBadge = static fn (string $s): string => [
 ][$s] ?? 'bg-gray-100 text-gray-600';
 $typeBadge = static fn (string $t): string => [
     'Receipt'    => 'bg-brand-100 text-brand-800',
-    'Demand'     => 'bg-amber-100 text-amber-800',
+    'Due'     => 'bg-amber-100 text-amber-800',
     'Adjustment' => 'bg-indigo-100 text-indigo-800',
 ][$t] ?? 'bg-gray-100 text-gray-600';
 ?>
 <div class="grid gap-4 sm:grid-cols-3">
     <div class="card card-body">
-        <p class="text-sm text-gray-500">Total demanded</p>
+        <p class="text-sm text-gray-500">Total dues</p>
         <p class="mt-1 text-xl font-bold text-gray-900">₹ <?= money($ledger['total_demand']) ?></p>
     </div>
     <div class="card card-body">
@@ -61,12 +61,12 @@ $typeBadge = static fn (string $t): string => [
                                 <a href="<?= e(url('/receipts/create?demand_id=' . $row['demand_id'])) ?>"
                                    class="ml-2 text-sm font-medium text-brand-700 hover:underline">Record receipt<?= $row['remaining'] > 0 ? ' (₹' . money($row['remaining']) . ')' : '' ?></a>
                                 <span class="text-gray-300">·</span>
-                                <form method="post" action="<?= e(url('/demands/' . $row['demand_id'] . '/mark-paid')) ?>" class="inline" data-confirm="Mark this demand as paid without recording a receipt?">
+                                <form method="post" action="<?= e(url('/demands/' . $row['demand_id'] . '/mark-paid')) ?>" class="inline" data-confirm="Mark this due as paid without recording a receipt?">
                                     <?= csrf_field() ?>
                                     <button type="submit" class="text-sm text-gray-500 hover:underline">Mark paid</button>
                                 </form>
                             <?php elseif ($canRecord && ($row['reopenable'] ?? false)): ?>
-                                <form method="post" action="<?= e(url('/demands/' . $row['demand_id'] . '/reopen')) ?>" class="inline" data-confirm="Reopen this demand? It was marked paid without a receipt.">
+                                <form method="post" action="<?= e(url('/demands/' . $row['demand_id'] . '/reopen')) ?>" class="inline" data-confirm="Reopen this due? It was marked paid without a receipt.">
                                     <?= csrf_field() ?>
                                     <button type="submit" class="ml-2 text-sm text-gray-500 hover:underline">Reopen</button>
                                 </form>

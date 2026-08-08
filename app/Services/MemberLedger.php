@@ -60,13 +60,13 @@ final class MemberLedger
             $demandDate = $d['due_date'] ?: substr((string) $d['created_at'], 0, 10);
             $entries[] = [
                 'date'        => $demandDate,
-                'type'        => 'Demand',
+                'type'        => 'Due',
                 'kind'        => 'demand',
                 'demand_id'   => (int) $d['id'],
                 'status'      => $status,
                 'remaining'   => $remaining,
                 'reopenable'  => $manualPaid,
-                'description' => ((string) ($d['purpose_name'] ?? 'Demand')) . ($d['remarks'] ? ' — ' . $d['remarks'] : ''),
+                'description' => ((string) ($d['purpose_name'] ?? 'Due')) . ($d['remarks'] ? ' — ' . $d['remarks'] : ''),
                 'debit'       => $amount,
                 'credit'      => 0.0,
                 'sort'        => $demandDate . '-0',

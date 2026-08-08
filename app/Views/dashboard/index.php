@@ -22,7 +22,7 @@
 <div class="mt-4 card card-body">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <p class="text-sm font-medium text-gray-500">Outstanding member dues (demands − receipts)</p>
+            <p class="text-sm font-medium text-gray-500">Outstanding member dues (dues − receipts)</p>
             <p class="mt-1 text-2xl font-bold <?= $stats['outstanding'] > 0 ? 'text-amber-600' : 'text-brand-700' ?>">₹ <?= money(max(0, $stats['outstanding'])) ?></p>
         </div>
         <div class="grid grid-cols-2 gap-3 sm:w-96">
@@ -36,7 +36,7 @@
             </div>
         </div>
     </div>
-    <p class="mt-2 text-xs text-gray-400">Split by demand purpose type — configure under Masters → Demand Purpose.</p>
+    <p class="mt-2 text-xs text-gray-400">Split by due purpose type — configure under Masters → Due Purpose.</p>
 </div>
 
 <div class="mt-8 grid gap-6 lg:grid-cols-2">

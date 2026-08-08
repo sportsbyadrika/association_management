@@ -5,7 +5,7 @@ $val = static fn (string $k, $d = '') => e(old($k) !== '' ? old($k) : ($item[$k]
 $curType = old('type') !== '' ? old('type') : ($item['type'] ?? 'optional');
 ?>
 
-<h1 class="mb-6 text-2xl font-bold text-gray-900"><?= $isEdit ? 'Edit' : 'Add' ?> Demand Purpose</h1>
+<h1 class="mb-6 text-2xl font-bold text-gray-900"><?= $isEdit ? 'Edit' : 'Add' ?> Due Purpose</h1>
 
 <div class="max-w-xl card card-body">
     <form method="post" action="<?= e($action) ?>" class="space-y-5" novalidate>

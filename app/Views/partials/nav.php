@@ -14,7 +14,7 @@ $finance = [
     'id'       => 'financeMenu',
     'prefixes' => ['/demands', '/receipts', '/expenditures'],
     'items'    => [
-        ['Demands', '/demands'],
+        ['Dues', '/demands'],
         ['Receipts', '/receipts'],
         ['Expenditure', '/expenditures'],
     ],
