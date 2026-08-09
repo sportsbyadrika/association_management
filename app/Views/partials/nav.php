@@ -34,6 +34,7 @@ if ($role === 'super_admin') {
         ['type' => 'link', 'label' => 'Projects', 'href' => '/projects', 'prefix' => '/projects'],
         ['type' => 'link', 'label' => 'Gifts', 'href' => '/gifts', 'prefix' => '/gifts'],
         ['type' => 'link', 'label' => 'Events', 'href' => '/events', 'prefix' => '/events'],
+        ['type' => 'link', 'label' => 'Committees', 'href' => '/committees', 'prefix' => '/committees'],
         ['type' => 'link', 'label' => 'Masters', 'href' => '/masters/member-types', 'prefix' => '/masters', 'extra' => ['/bank-accounts']],
         ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
     ];
@@ -45,6 +46,11 @@ if ($role === 'super_admin') {
         ['type' => 'link', 'label' => 'Projects', 'href' => '/projects', 'prefix' => '/projects'],
         ['type' => 'link', 'label' => 'Gifts', 'href' => '/gifts', 'prefix' => '/gifts'],
         ['type' => 'link', 'label' => 'Events', 'href' => '/events', 'prefix' => '/events'],
+        ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
+    ];
+} elseif ($role === 'official') {
+    $menu = [
+        ['type' => 'link', 'label' => 'Dashboard', 'href' => '/dashboard', 'prefix' => '/dashboard'],
         ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
     ];
 } elseif ($role === 'member') {

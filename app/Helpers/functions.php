@@ -150,6 +150,7 @@ if (!function_exists('role_label')) {
             'super_admin'       => 'Super Admin',
             'association_admin' => 'Association Admin',
             'association_staff' => 'Staff',
+            'official'          => 'Official',
             'member'            => 'Member',
             default             => (string) $role,
         };
