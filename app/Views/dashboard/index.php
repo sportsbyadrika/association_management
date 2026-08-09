@@ -1,5 +1,9 @@
 <?php $this->layout('layouts.app'); /** @var array $stats */ /** @var list $memberTypeCounts */
 $memberTypeCounts = $memberTypeCounts ?? [];
+// Officials get a read-only dashboard: cards are not links (no access beyond
+// Dashboard + Reports).
+$canNavigate = \App\Core\Auth::is('association_admin', 'association_staff');
+$cardTag = $canNavigate ? 'a' : 'div';
 ?>
 
 <h1 class="mb-1 text-2xl font-bold text-gray-900">Dashboard</h1>
@@ -7,7 +11,7 @@ $memberTypeCounts = $memberTypeCounts ?? [];
 
 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <!-- Members card with per-type breakdown -->
-    <a href="<?= e(url('/members')) ?>" class="card card-body block transition hover:shadow-md">
+    <<?= $cardTag ?> <?= $canNavigate ? 'href="' . e(url('/members')) . '"' : '' ?> class="card card-body block transition hover:shadow-md">
         <p class="text-sm font-medium text-gray-500">Members</p>
         <p class="mt-2 text-2xl font-bold text-brand-700"><?= e(number_format($stats['members'])) ?></p>
         <?php if ($memberTypeCounts !== []): ?>
@@ -19,7 +23,7 @@ $memberTypeCounts = $memberTypeCounts ?? [];
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
-    </a>
+    </<?= $cardTag ?>>
     <?php
     $cards = [
         ['Total Receipts', '₹ ' . money($stats['receipts']), 'text-emerald-600', '/receipts'],
@@ -27,10 +31,10 @@ $memberTypeCounts = $memberTypeCounts ?? [];
         ['Active Projects', number_format($stats['projects']) . ' / ' . number_format($stats['projects_total'] ?? $stats['projects']), 'text-indigo-600', '/projects'],
     ];
     foreach ($cards as [$label, $value, $color, $href]): ?>
-        <a href="<?= e(url($href)) ?>" class="card card-body block transition hover:shadow-md">
+        <<?= $cardTag ?> <?= $canNavigate ? 'href="' . e(url($href)) . '"' : '' ?> class="card card-body block transition hover:shadow-md">
             <p class="text-sm font-medium text-gray-500"><?= e($label) ?></p>
             <p class="mt-2 text-2xl font-bold <?= $color ?>"><?= e($value) ?></p>
-        </a>
+        </<?= $cardTag ?>>
     <?php endforeach; ?>
 </div>
 

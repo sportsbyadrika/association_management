@@ -48,6 +48,11 @@ if ($role === 'super_admin') {
         ['type' => 'link', 'label' => 'Events', 'href' => '/events', 'prefix' => '/events'],
         ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
     ];
+} elseif ($role === 'official') {
+    $menu = [
+        ['type' => 'link', 'label' => 'Dashboard', 'href' => '/dashboard', 'prefix' => '/dashboard'],
+        ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
+    ];
 } elseif ($role === 'member') {
     $menu = [
         ['type' => 'link', 'label' => 'My Profile', 'href' => '/member/profile', 'prefix' => '/member/profile'],

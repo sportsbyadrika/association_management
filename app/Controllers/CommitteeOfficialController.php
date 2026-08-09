@@ -144,11 +144,12 @@ final class CommitteeOfficialController extends Controller
     private function maybeCreateLogin(Request $request, int $assocId, string $name, ?string $email, ?int $existingUserId): ?int
     {
         $wantsLogin = (string) $request->input('create_login', '') !== '';
-        $role = $request->input('login_role') === 'association_admin' ? 'association_admin' : 'association_staff';
+        // Officials get a restricted "official" login (Dashboard + Reports only).
+        $role = 'official';
         $password = (string) $request->input('login_password', '');
         $userModel = new User();
 
-        // Existing login: update role, and reset password if one was supplied.
+        // Existing login: keep the official role in sync, reset password if given.
         if ($existingUserId !== null) {
             $userModel->update($existingUserId, ['role' => $role, 'name' => $name]);
             if ($password !== '') {

@@ -51,7 +51,7 @@ $router->post('/password/force-change', [AuthController::class, 'doForceChange']
 // ---- Authenticated shared ------------------------------------------------
 $router->group(['auth' => true], function ($router): void {
     $router->get('/dashboard', [DashboardController::class, 'index'], [
-        'roles' => ['association_admin', 'association_staff'],
+        'roles' => ['association_admin', 'association_staff', 'official'],
     ]);
 
     // Profile + self password change (all roles).
@@ -214,8 +214,8 @@ $router->group(['auth' => true, 'roles' => ['association_admin']], function ($ro
     $router->post('/bank-accounts/{id}', [BankAccountController::class, 'update']);
 });
 
-// ---- Reports (admin + staff view; export) --------------------------------
-$router->group(['auth' => true, 'roles' => ['association_admin', 'association_staff']], function ($router): void {
+// ---- Reports (admin + staff + officials view; export) --------------------
+$router->group(['auth' => true, 'roles' => ['association_admin', 'association_staff', 'official']], function ($router): void {
     $router->get('/reports', [ReportController::class, 'index']);
     $router->get('/reports/members', [ReportController::class, 'members']);
     $router->get('/reports/member-ledger', [ReportController::class, 'memberLedger']);

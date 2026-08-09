@@ -61,40 +61,23 @@ $loginRole = (string) (old('login_role') !== '' ? old('login_role') : ($login['r
         <!-- Login -->
         <div class="border-t border-gray-100 pt-5">
             <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Login</h2>
+            <p class="mt-1 text-xs text-gray-400">Official logins can access the Dashboard and Reports only.</p>
             <?php if ($login !== null): ?>
                 <p class="mt-2 text-sm text-gray-600">This official has a login: <span class="font-medium text-gray-900"><?= e($login['email']) ?></span></p>
-                <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label for="login_role" class="form-label">Access role</label>
-                        <select id="login_role" name="login_role" class="form-select">
-                            <option value="association_staff" <?= $loginRole === 'association_staff' ? 'selected' : '' ?>>Association Staff</option>
-                            <option value="association_admin" <?= $loginRole === 'association_admin' ? 'selected' : '' ?>>Association Admin</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="login_password" class="form-label">Reset password (optional)</label>
-                        <input type="text" id="login_password" name="login_password" value="" class="form-input" placeholder="Leave blank to keep current">
-                        <?php if ($m = error_for('login_password')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
-                    </div>
+                <div class="mt-3 max-w-sm">
+                    <label for="login_password" class="form-label">Reset password (optional)</label>
+                    <input type="text" id="login_password" name="login_password" value="" class="form-input" placeholder="Leave blank to keep current">
+                    <?php if ($m = error_for('login_password')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
                 </div>
             <?php else: ?>
                 <label class="mt-2 inline-flex items-center gap-2 text-sm text-gray-700">
                     <input type="checkbox" name="create_login" value="1" <?= old('create_login') !== '' ? 'checked' : '' ?> class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
                     Create a login for this official (uses the email above)
                 </label>
-                <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label for="login_role" class="form-label">Access role</label>
-                        <select id="login_role" name="login_role" class="form-select">
-                            <option value="association_staff" <?= $loginRole === 'association_staff' ? 'selected' : '' ?>>Association Staff</option>
-                            <option value="association_admin" <?= $loginRole === 'association_admin' ? 'selected' : '' ?>>Association Admin</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="login_password" class="form-label">Temporary password</label>
-                        <input type="text" id="login_password" name="login_password" value="<?= old('login_password') ?>" class="form-input" placeholder="Min 8 characters">
-                        <?php if ($m = error_for('login_password')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
-                    </div>
+                <div class="mt-3 max-w-sm">
+                    <label for="login_password" class="form-label">Temporary password</label>
+                    <input type="text" id="login_password" name="login_password" value="<?= old('login_password') ?>" class="form-input" placeholder="Min 8 characters">
+                    <?php if ($m = error_for('login_password')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
                 </div>
                 <p class="mt-1 text-xs text-gray-400">The official must change this password on first login.</p>
             <?php endif; ?>
