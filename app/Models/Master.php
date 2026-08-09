@@ -25,6 +25,7 @@ final class Master extends Model
         'project-types'         => 'project_types',
         'gift-types'            => 'gift_types',
         'event-types'           => 'event_types',
+        'official-designations' => 'official_designations',
     ];
 
     /** @var array<string,string> */
@@ -37,6 +38,7 @@ final class Master extends Model
         'project-types'         => 'Project Type',
         'gift-types'            => 'Gift Type',
         'event-types'           => 'Event Type',
+        'official-designations' => 'Official Designation',
     ];
 
     public function __construct(string $key)

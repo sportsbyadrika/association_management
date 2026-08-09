@@ -99,6 +99,11 @@ final class PhotoController extends Controller
             return $family['photo_path'] ?: null;
         }
 
+        if ($type === 'official') {
+            $official = (new \App\Models\CommitteeOfficial())->findForAssociation($id, $assocId);
+            return $official['photo_path'] ?? null;
+        }
+
         if ($type === 'milestone') {
             $milestone = (new ProjectMilestone())->find($id);
             if ($milestone === null) {

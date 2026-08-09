@@ -11,6 +11,8 @@ declare(strict_types=1);
 use App\Controllers\AssociationController;
 use App\Controllers\AuthController;
 use App\Controllers\BankAccountController;
+use App\Controllers\CommitteeController;
+use App\Controllers\CommitteeOfficialController;
 use App\Controllers\DashboardController;
 use App\Controllers\DemandController;
 use App\Controllers\DemandPurposeController;
@@ -187,6 +189,21 @@ $router->group(['auth' => true, 'roles' => ['association_admin']], function ($ro
     $router->get('/masters/{master}/{id}/edit', [MasterController::class, 'edit']);
     $router->post('/masters/{master}/{id}', [MasterController::class, 'update']);
     $router->post('/masters/{master}/{id}/toggle', [MasterController::class, 'toggle']);
+
+    // Committees + officials (officials may have logins; admin-only).
+    $router->get('/committees', [CommitteeController::class, 'index']);
+    $router->get('/committees/create', [CommitteeController::class, 'create']);
+    $router->post('/committees', [CommitteeController::class, 'store']);
+    $router->get('/committees/{id}', [CommitteeController::class, 'show']);
+    $router->get('/committees/{id}/edit', [CommitteeController::class, 'edit']);
+    $router->post('/committees/{id}', [CommitteeController::class, 'update']);
+    $router->post('/committees/{id}/delete', [CommitteeController::class, 'destroy']);
+    $router->get('/committees/{id}/officials-pdf', [CommitteeController::class, 'officialsPdf']);
+    $router->get('/committees/{committeeId}/officials/create', [CommitteeOfficialController::class, 'create']);
+    $router->post('/committees/{committeeId}/officials', [CommitteeOfficialController::class, 'store']);
+    $router->get('/officials/{id}/edit', [CommitteeOfficialController::class, 'edit']);
+    $router->post('/officials/{id}', [CommitteeOfficialController::class, 'update']);
+    $router->post('/officials/{id}/delete', [CommitteeOfficialController::class, 'destroy']);
 
     // Bank accounts + ledger
     $router->get('/bank-accounts', [BankAccountController::class, 'index']);

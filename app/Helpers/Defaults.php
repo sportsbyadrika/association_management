@@ -23,6 +23,7 @@ final class Defaults
             'gift_types'           => ['Cash', 'In-kind', 'Trophy', 'Certificate', 'Other'],
             'additional_memberships' => ['Executive Committee', 'Sports Wing', 'Cultural Wing', 'Youth Wing', 'Women Wing'],
             'event_types'          => ['Annual Day', 'Festival', 'Meeting', 'Sports', 'Other'],
+            'official_designations' => ['President', 'Vice President', 'Secretary', 'Joint Secretary', 'Treasurer', 'Committee Member'],
         ];
 
         foreach ($sets as $table => $names) {
