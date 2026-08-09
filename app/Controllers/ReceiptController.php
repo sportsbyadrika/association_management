@@ -13,6 +13,8 @@ use App\Core\Validator;
 use App\Models\BankAccount;
 use App\Models\Demand;
 use App\Models\DemandPurpose;
+use App\Models\Event;
+use App\Models\Gift;
 use App\Models\Master;
 use App\Models\Member;
 use App\Models\Project;
@@ -102,15 +104,28 @@ final class ReceiptController extends Controller
             $demandPurposeName = $dp['name'] ?? null;
         }
 
+        $selectedGift = (int) $request->input('gift_id', 0);
+        $selectedEvent = (int) $request->input('event_id', 0);
+        $category = (string) $request->input('category', '');
+        if ($category === '') {
+            $category = $selectedProject > 0 ? 'project'
+                : ($selectedGift > 0 ? 'gift' : ($selectedEvent > 0 ? 'event' : 'general'));
+        }
+
         $this->view('receipts.form', [
             'title'              => 'Record Receipt',
             'members'            => (new Member())->options($assocId),
             'incomeHeads'        => $incomeHeads,
             'projects'           => (new Project())->options($assocId),
+            'gifts'              => (new Gift())->options($assocId),
+            'events'             => (new Event())->options($assocId),
             'demandPurposeName'  => $demandPurposeName,
             'bankAccounts'       => (new BankAccount())->options($assocId),
             'selectedMember'     => $selectedMember,
             'selectedProject'    => $selectedProject,
+            'selectedGift'       => $selectedGift,
+            'selectedEvent'      => $selectedEvent,
+            'selectedCategory'   => $category,
             'selectedIncomeHead' => $selectedIncomeHead,
             'demand'             => $demand,
             'demandId'           => $demandId,
@@ -134,17 +149,18 @@ final class ReceiptController extends Controller
                 $this->withErrors(['amount' => 'The linked due is invalid.'], $input);
             }
             $input['member_id'] = (int) $demand['member_id'];
-            if ($demand['project_id']) {
-                $input['project_id'] = (int) $demand['project_id'];
-            }
+            // A demand-linked receipt follows the demand: project category if the
+            // demand is tied to a project, otherwise general.
+            $input['category'] = $demand['project_id'] ? 'project' : 'general';
+            $input['project_id'] = $demand['project_id'] ? (int) $demand['project_id'] : null;
         }
 
         $receipt = new Receipt();
-        $receipt->create([
+        $receipt->create(array_merge([
             'association_id'  => $assocId,
             'member_id'       => $input['member_id'],
             'income_head_id'  => $input['income_head_id'],
-            'project_id'      => $input['project_id'],
+            'category'        => $input['category'],
             'demand_id'       => $input['demand_id'],
             'amount'          => $input['amount'],
             'mode'            => $input['mode'],
@@ -152,7 +168,7 @@ final class ReceiptController extends Controller
             'received_on'     => $input['received_on'],
             'remarks'         => $input['remarks'] ?: null,
             'created_by'      => Auth::id(),
-        ]);
+        ], $this->categoryLinks($input)));
 
         // Keep the demand's status in sync (pending -> partial/paid).
         if ($demand !== null) {
@@ -189,10 +205,15 @@ final class ReceiptController extends Controller
             'members'            => (new Member())->options($assocId),
             'incomeHeads'        => (new Master('income-heads'))->activeForAssociation($assocId),
             'projects'           => (new Project())->options($assocId),
+            'gifts'              => (new Gift())->options($assocId),
+            'events'             => (new Event())->options($assocId),
             'demandPurposeName'  => $demandPurposeName,
             'bankAccounts'       => (new BankAccount())->options($assocId),
             'selectedMember'     => (int) ($receipt['member_id'] ?? 0),
             'selectedProject'    => (int) ($receipt['project_id'] ?? 0),
+            'selectedGift'       => (int) ($receipt['gift_id'] ?? 0),
+            'selectedEvent'      => (int) ($receipt['event_id'] ?? 0),
+            'selectedCategory'   => (string) ($receipt['category'] ?? 'general'),
             'selectedIncomeHead' => (int) ($receipt['income_head_id'] ?? 0),
             'demand'             => $demand,
             'demandId'           => (int) ($receipt['demand_id'] ?? 0),
@@ -218,22 +239,21 @@ final class ReceiptController extends Controller
             $demand = (new Demand())->findForAssociation($demandId, $assocId);
             if ($demand !== null) {
                 $input['member_id'] = (int) $demand['member_id'];
-                if ($demand['project_id']) {
-                    $input['project_id'] = (int) $demand['project_id'];
-                }
+                $input['category'] = $demand['project_id'] ? 'project' : 'general';
+                $input['project_id'] = $demand['project_id'] ? (int) $demand['project_id'] : null;
             }
         }
 
-        (new Receipt())->update((int) $receipt['id'], [
+        (new Receipt())->update((int) $receipt['id'], array_merge([
             'member_id'       => $input['member_id'],
             'income_head_id'  => $input['income_head_id'],
-            'project_id'      => $input['project_id'],
+            'category'        => $input['category'],
             'amount'          => $input['amount'],
             'mode'            => $input['mode'],
             'bank_account_id' => $input['mode'] === 'fund_transfer' ? $input['bank_account_id'] : ($input['bank_account_id'] ?: null),
             'received_on'     => $input['received_on'],
             'remarks'         => $input['remarks'] ?: null,
-        ]);
+        ], $this->categoryLinks($input)));
 
         if ($demandId > 0) {
             (new Demand())->syncStatus($demandId);
@@ -255,7 +275,10 @@ final class ReceiptController extends Controller
         $input = [
             'member_id'      => $request->input('member_id') ?: null,
             'income_head_id' => $request->input('income_head_id') ?: null,
+            'category'       => (string) $request->input('category', 'general'),
             'project_id'     => $request->input('project_id') ?: null,
+            'gift_id'        => $request->input('gift_id') ?: null,
+            'event_id'       => $request->input('event_id') ?: null,
             'demand_id'      => $request->input('demand_id') ?: null,
             'amount'         => (string) $request->input('amount', ''),
             'mode'           => (string) $request->input('mode', 'cash'),
@@ -264,6 +287,7 @@ final class ReceiptController extends Controller
             'remarks'        => (string) $request->input('remarks', ''),
         ];
         $validator = Validator::make($input, [
+            'category'    => 'required|in:general,project,gift,event',
             'amount'      => 'required|decimal|min_val:0.01',
             'mode'        => 'required|in:cash,fund_transfer',
             'received_on' => 'required|date',
@@ -272,12 +296,39 @@ final class ReceiptController extends Controller
         if ($validator->fails()) {
             $this->withErrors($validator->errors(), $input);
         }
+        // A sub-selection is required for project/gift/event (unless the receipt
+        // is tied to a demand, which drives the category itself).
+        if ($input['demand_id'] === null) {
+            if ($input['category'] === 'project' && $input['project_id'] === null) {
+                $this->withErrors(['project_id' => 'Select the project this receipt belongs to.'], $input);
+            }
+            if ($input['category'] === 'gift' && $input['gift_id'] === null) {
+                $this->withErrors(['gift_id' => 'Select the gift this receipt belongs to.'], $input);
+            }
+            if ($input['category'] === 'event' && $input['event_id'] === null) {
+                $this->withErrors(['event_id' => 'Select the event this receipt belongs to.'], $input);
+            }
+        }
         if ($input['mode'] === 'fund_transfer' && $input['bank_account_id'] === null) {
             $this->withErrors(['bank_account_id' => 'Select the bank account for a fund transfer.'], $input);
         }
         $this->assertTenant($assocId, $input);
 
         return $input;
+    }
+
+    /**
+     * Map the receipt category to the correct link column, nulling the others.
+     * @param array<string,mixed> $input
+     * @return array{project_id:?int,gift_id:?int,event_id:?int}
+     */
+    private function categoryLinks(array $input): array
+    {
+        return [
+            'project_id' => $input['category'] === 'project' ? $input['project_id'] : null,
+            'gift_id'    => $input['category'] === 'gift' ? $input['gift_id'] : null,
+            'event_id'   => $input['category'] === 'event' ? $input['event_id'] : null,
+        ];
     }
 
     /** @return array{0:?string,1:?string} */
@@ -318,6 +369,12 @@ final class ReceiptController extends Controller
         }
         if ($input['project_id'] !== null && (new Project())->findForAssociation((int) $input['project_id'], $assocId) === null) {
             $this->withErrors(['project_id' => 'Invalid project.'], $input);
+        }
+        if (($input['gift_id'] ?? null) !== null && (new Gift())->findForAssociation((int) $input['gift_id'], $assocId) === null) {
+            $this->withErrors(['gift_id' => 'Invalid gift.'], $input);
+        }
+        if (($input['event_id'] ?? null) !== null && (new Event())->findForAssociation((int) $input['event_id'], $assocId) === null) {
+            $this->withErrors(['event_id' => 'Invalid event.'], $input);
         }
         if ($input['bank_account_id'] !== null && (new BankAccount())->findForAssociation((int) $input['bank_account_id'], $assocId) === null) {
             $this->withErrors(['bank_account_id' => 'Invalid bank account.'], $input);
