@@ -37,22 +37,142 @@ final class ReportController extends Controller
     public function members(Request $request): void
     {
         $assocId = Auth::associationId();
-        $rows = (new Member())->db()->fetchAll(
-            "SELECT m.name, mt.name AS type, m.age, m.gender, m.mobile, m.whatsapp,
-                    m.email, m.family_members_count, m.is_active
-             FROM members m LEFT JOIN member_types mt ON mt.id = m.member_type_id
-             WHERE m.association_id = ? ORDER BY m.name ASC",
-            [$assocId]
-        );
+        $rows = (new Member())->directoryForReport($assocId);
+        $format = (string) $request->input('format', 'csv');
+        $layout = (string) $request->input('layout', 'list');
 
-        $columns = ['Name', 'Type', 'Age', 'Gender', 'Mobile', 'WhatsApp', 'Email', 'Family', 'Status'];
-        $data = array_map(static fn ($r) => [
-            $r['name'], $r['type'] ?? '', $r['age'] ?? '', ucfirst((string) ($r['gender'] ?? '')),
-            $r['mobile'] ?? '', $r['whatsapp'] ?? '', $r['email'] ?? '',
-            $r['family_members_count'] ?? '', (int) $r['is_active'] === 1 ? 'Active' : 'Inactive',
-        ], $rows);
+        // CSV: enriched text columns (no photo).
+        if ($format !== 'pdf') {
+            $columns = ['Sl No.', 'Member Id', 'Name', 'Type', 'Age', 'Gender', 'Blood Group',
+                        'Mobile', 'WhatsApp', 'Email', 'Family', 'Additional Memberships', 'Status'];
+            $data = [];
+            $sl = 0;
+            foreach ($rows as $r) {
+                $data[] = [
+                    ++$sl,
+                    $r['member_number'] ?: '-',
+                    $r['name'],
+                    $r['type'] ?? '',
+                    $r['age'] ?? '',
+                    ucfirst((string) ($r['gender'] ?? '')),
+                    $r['blood_group'] ?? '',
+                    $r['mobile'] ?? '',
+                    $r['whatsapp'] ?? '',
+                    $r['email'] ?? '',
+                    $r['family_members_count'] ?? '',
+                    $r['additional_memberships'] ?? '',
+                    (int) $r['is_active'] === 1 ? 'Active' : 'Inactive',
+                ];
+            }
+            CsvExporter::download('members-report', $columns, $data);
+        }
 
-        $this->emit($request, 'members-report', 'Members Directory', $columns, $data);
+        // PDF: list-wise (table with photos) or card-wise (ID cards).
+        $meta = ['Total members' => (string) count($rows)];
+        if ($layout === 'card') {
+            $this->pdf()->streamHtml('members-cards', 'Members — ID Cards', $this->membersCardHtml($rows), $meta, 'portrait');
+        }
+        $this->pdf()->streamHtml('members-directory', 'Members Directory', $this->membersListHtml($rows), $meta, 'landscape');
+    }
+
+    /** Base64 data URI for a stored member photo, or null. */
+    private function photoDataUri(?string $relativePath): ?string
+    {
+        if (!$relativePath) {
+            return null;
+        }
+        $base = (new ImageUploader())->baseDir();
+        $path = $base . '/' . ltrim($relativePath, '/');
+        $real = realpath($path);
+        if ($real === false || !str_starts_with($real, realpath($base) ?: $base) || !is_file($real)) {
+            return null;
+        }
+        $data = @file_get_contents($real);
+        if ($data === false) {
+            return null;
+        }
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($data) ?: 'image/jpeg';
+        return 'data:' . $mime . ';base64,' . base64_encode($data);
+    }
+
+    /** @param list<array<string,mixed>> $rows */
+    private function membersListHtml(array $rows): string
+    {
+        $esc = static fn ($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+        $head = '<table class="data"><thead><tr>'
+            . '<th>Sl No.</th><th>Member Id</th><th>Photo</th><th>Name</th><th>Type</th>'
+            . '<th>Age</th><th>Gender</th><th>Blood</th><th>Mobile</th><th>WhatsApp</th>'
+            . '<th>Email</th><th>Family</th><th>Additional Memberships</th><th>Status</th>'
+            . '</tr></thead><tbody>';
+        $body = '';
+        $sl = 0;
+        foreach ($rows as $r) {
+            $uri = $this->photoDataUri($r['photo_path'] ?? null);
+            $photo = $uri !== null ? '<img class="photo" src="' . $uri . '">' : '—';
+            $body .= '<tr>'
+                . '<td>' . (++$sl) . '</td>'
+                . '<td>' . $esc($r['member_number'] ?: '-') . '</td>'
+                . '<td>' . $photo . '</td>'
+                . '<td>' . $esc($r['name']) . '</td>'
+                . '<td>' . $esc($r['type'] ?? '') . '</td>'
+                . '<td>' . $esc($r['age'] ?? '') . '</td>'
+                . '<td>' . $esc(ucfirst((string) ($r['gender'] ?? ''))) . '</td>'
+                . '<td>' . $esc($r['blood_group'] ?? '') . '</td>'
+                . '<td>' . $esc($r['mobile'] ?? '') . '</td>'
+                . '<td>' . $esc($r['whatsapp'] ?? '') . '</td>'
+                . '<td>' . $esc($r['email'] ?? '') . '</td>'
+                . '<td>' . $esc($r['family_members_count'] ?? '') . '</td>'
+                . '<td>' . $esc($r['additional_memberships'] ?? '') . '</td>'
+                . '<td>' . ((int) $r['is_active'] === 1 ? 'Active' : 'Inactive') . '</td>'
+                . '</tr>';
+        }
+        if ($rows === []) {
+            $body = '<tr><td colspan="14" style="text-align:center;color:#9ca3af">No members found.</td></tr>';
+        }
+        return $head . $body . '</tbody></table>';
+    }
+
+    /** @param list<array<string,mixed>> $rows */
+    private function membersCardHtml(array $rows): string
+    {
+        $esc = static fn ($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+        if ($rows === []) {
+            return '<p style="text-align:center;color:#9ca3af">No members found.</p>';
+        }
+        $cells = [];
+        foreach ($rows as $r) {
+            $uri = $this->photoDataUri($r['photo_path'] ?? null);
+            $pic = $uri !== null
+                ? '<img src="' . $uri . '">'
+                : '<div class="ph">' . $esc(strtoupper(substr((string) $r['name'], 0, 1))) . '</div>';
+            $lines = '';
+            $lines .= '<div class="fld"><b>Member Id:</b> ' . $esc($r['member_number'] ?: '-') . '</div>';
+            if (!empty($r['blood_group'])) {
+                $lines .= '<div class="fld"><b>Blood:</b> ' . $esc($r['blood_group']) . '</div>';
+            }
+            if (!empty($r['mobile'])) {
+                $lines .= '<div class="fld"><b>Mobile:</b> ' . $esc($r['mobile']) . '</div>';
+            }
+            if (!empty($r['additional_memberships'])) {
+                $lines .= '<div class="fld"><b>Also:</b> ' . $esc($r['additional_memberships']) . '</div>';
+            }
+            $cells[] = '<td class="card"><div class="row">'
+                . '<div class="pic">' . $pic . '</div>'
+                . '<div class="info">'
+                . '<div class="nm">' . $esc($r['name']) . '</div>'
+                . '<div class="ty">' . $esc($r['type'] ?? 'Member') . '</div>'
+                . $lines
+                . '</div></div></td>';
+        }
+        // Two cards per row.
+        $html = '<table class="cards"><tbody>';
+        for ($i = 0, $n = count($cells); $i < $n; $i += 2) {
+            $left = $cells[$i];
+            $right = $cells[$i + 1] ?? '<td></td>';
+            $html .= '<tr>' . $left . $right . '</tr>';
+        }
+        $html .= '</tbody></table>';
+        return $html;
     }
 
     // ---- 2. Member ledger ----------------------------------------------
@@ -321,7 +441,7 @@ final class ReportController extends Controller
             }
 
             $this->view('reports.purpose_ledger_members', [
-                'title'           => 'Purpose Ledger',
+                'title'           => 'Ledger',
                 'purposeId'       => $purposeId,
                 'selectedPurpose' => $selectedPurpose,
                 'selectedFy'      => $selectedFy,
@@ -379,7 +499,7 @@ final class ReportController extends Controller
         }
 
         $this->view('reports.purpose_ledger', [
-            'title'           => 'Purpose Ledger',
+            'title'           => 'Ledger',
             'purposes'        => $purposes,
             'purposeId'       => $purposeId,
             'selectedPurpose' => $selectedPurpose,

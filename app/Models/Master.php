@@ -17,22 +17,24 @@ final class Master extends Model
 
     /** @var array<string,string> whitelist: url segment => table */
     public const TABLES = [
-        'member-types'         => 'member_types',
-        'family-member-types'  => 'family_member_types',
-        'income-heads'         => 'income_heads',
-        'expenditure-heads'    => 'expenditure_heads',
-        'project-types'        => 'project_types',
-        'gift-types'           => 'gift_types',
+        'member-types'          => 'member_types',
+        'family-member-types'   => 'family_member_types',
+        'additional-memberships' => 'additional_memberships',
+        'income-heads'          => 'income_heads',
+        'expenditure-heads'     => 'expenditure_heads',
+        'project-types'         => 'project_types',
+        'gift-types'            => 'gift_types',
     ];
 
     /** @var array<string,string> */
     public const LABELS = [
-        'member-types'         => 'Member Type',
-        'family-member-types'  => 'Family Member Type',
-        'income-heads'         => 'Income Head',
-        'expenditure-heads'    => 'Expenditure Head',
-        'project-types'        => 'Project Type',
-        'gift-types'           => 'Gift Type',
+        'member-types'          => 'Member Type',
+        'family-member-types'   => 'Family Member Type',
+        'additional-memberships' => 'Additional Membership',
+        'income-heads'          => 'Income Head',
+        'expenditure-heads'     => 'Expenditure Head',
+        'project-types'         => 'Project Type',
+        'gift-types'            => 'Gift Type',
     ];
 
     public function __construct(string $key)

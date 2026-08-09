@@ -48,6 +48,9 @@ final class MemberController extends Controller
             'title'  => 'Add Member',
             'member' => null,
             'memberTypes' => $this->memberTypes(),
+            'bloodGroups' => $this->bloodGroups(),
+            'additionalMemberships' => (new Master('additional-memberships'))->activeForAssociation(Auth::associationId()),
+            'selectedAdditional' => [],
         ]);
         Session::clearFormState();
     }
@@ -68,6 +71,7 @@ final class MemberController extends Controller
         }
 
         $id = (new Member())->create($data);
+        (new Member())->syncAdditionalMemberships($id, $assocId, (array) $request->input('additional_membership_ids', []));
         $this->flash('success', 'Member added.');
         $this->redirect('/members/' . $id);
     }
@@ -85,6 +89,7 @@ final class MemberController extends Controller
             'member' => $member,
             'ledger' => $ledger,
             'familyMembers' => (new \App\Models\FamilyMember())->forMember((int) $member['id']),
+            'additionalMemberships' => (new Member())->additionalMembershipNames((int) $member['id']),
         ]);
     }
 
@@ -98,6 +103,9 @@ final class MemberController extends Controller
             'title'  => 'Edit Member',
             'member' => $member,
             'memberTypes' => $this->memberTypes(),
+            'bloodGroups' => $this->bloodGroups(),
+            'additionalMemberships' => (new Master('additional-memberships'))->activeForAssociation(Auth::associationId()),
+            'selectedAdditional' => (new Member())->additionalMembershipIds((int) $member['id']),
         ]);
         Session::clearFormState();
     }
@@ -123,6 +131,7 @@ final class MemberController extends Controller
         }
 
         (new Member())->update((int) $member['id'], $data);
+        (new Member())->syncAdditionalMemberships((int) $member['id'], $assocId, (array) $request->input('additional_membership_ids', []));
         $this->flash('success', 'Member updated.');
         $this->redirect('/members/' . $member['id']);
     }
@@ -464,6 +473,12 @@ final class MemberController extends Controller
         return (new Master('member-types'))->activeForAssociation(Auth::associationId());
     }
 
+    /** @return list<string> Standard ABO/Rh blood groups. */
+    private function bloodGroups(): array
+    {
+        return ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    }
+
     /** @return array<string,mixed> */
     private function validated(Request $request): array
     {
@@ -473,6 +488,7 @@ final class MemberController extends Controller
             'member_type_id' => $request->input('member_type_id') ?: null,
             'age'    => $request->input('age'),
             'gender' => (string) $request->input('gender', ''),
+            'blood_group' => (string) $request->input('blood_group', ''),
             'address' => (string) $request->input('address', ''),
             'mobile' => (string) $request->input('mobile', ''),
             'whatsapp' => (string) $request->input('whatsapp', ''),
@@ -505,6 +521,7 @@ final class MemberController extends Controller
         $input['age'] = $input['age'] !== '' && $input['age'] !== null ? (int) $input['age'] : null;
         $input['family_members_count'] = $input['family_members_count'] !== '' && $input['family_members_count'] !== null ? (int) $input['family_members_count'] : null;
         $input['gender'] = $input['gender'] ?: null;
+        $input['blood_group'] = $input['blood_group'] ?: null;
         $input['email'] = $input['email'] ?: null;
         $input['joined_on'] = $input['joined_on'] ?: null;
         foreach (['address', 'mobile', 'whatsapp', 'occupation', 'notes'] as $k) {
