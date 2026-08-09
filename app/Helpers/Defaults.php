@@ -21,6 +21,7 @@ final class Defaults
             'expenditure_heads'    => ['Administrative', 'Project', 'Maintenance'],
             'project_types'        => ['General', 'Infrastructure', 'Welfare'],
             'gift_types'           => ['Cash', 'In-kind', 'Trophy', 'Certificate', 'Other'],
+            'additional_memberships' => ['Executive Committee', 'Sports Wing', 'Cultural Wing', 'Youth Wing', 'Women Wing'],
         ];
 
         foreach ($sets as $table => $names) {

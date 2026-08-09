@@ -1,5 +1,7 @@
 <?php $this->layout('layouts.app'); /** @var array $member */ /** @var array $ledger */ /** @var list $familyMembers */
+/** @var list $additionalMemberships */
 $familyMembers = $familyMembers ?? [];
+$additionalMemberships = $additionalMemberships ?? [];
 ?>
 
 <div class="mb-6 flex items-center justify-between">
@@ -27,6 +29,7 @@ $familyMembers = $familyMembers ?? [];
                 'Member No.' => $member['member_number'] ?? '—',
                 'Age' => $member['age'] ?? '—',
                 'Gender' => ucfirst((string) ($member['gender'] ?? '—')),
+                'Blood group' => $member['blood_group'] ?? '—',
                 'Mobile' => $member['mobile'] ?? '—',
                 'WhatsApp' => $member['whatsapp'] ?? '—',
                 'Email' => $member['email'] ?? '—',
@@ -40,6 +43,16 @@ $familyMembers = $familyMembers ?? [];
                     <dd class="text-right font-medium text-gray-900"><?= e($value) ?></dd>
                 </div>
             <?php endforeach; ?>
+            <?php if ($additionalMemberships !== []): ?>
+                <div>
+                    <dt class="text-gray-500">Additional memberships</dt>
+                    <dd class="mt-1 flex flex-wrap gap-1.5">
+                        <?php foreach ($additionalMemberships as $am): ?>
+                            <span class="inline-flex rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700"><?= e($am) ?></span>
+                        <?php endforeach; ?>
+                    </dd>
+                </div>
+            <?php endif; ?>
             <?php if (!empty($member['address'])): ?>
                 <div><dt class="text-gray-500">Address</dt><dd class="mt-1 text-gray-900"><?= e($member['address']) ?></dd></div>
             <?php endif; ?>

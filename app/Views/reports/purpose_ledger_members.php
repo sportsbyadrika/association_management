@@ -11,7 +11,7 @@ $qs = $base . '&project=' . urlencode($projectParam);
 <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
         <a href="<?= e(url('/reports/purpose-ledger?' . $base)) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to project summary</a>
-        <h1 class="mt-1 text-2xl font-bold text-gray-900">Purpose Ledger &mdash; <?= e($projectName) ?></h1>
+        <h1 class="mt-1 text-2xl font-bold text-gray-900">Ledger &mdash; <?= e($projectName) ?></h1>
         <p class="mt-1 text-sm text-gray-500">Member-wise dues, collection and balance for <?= e($selectedPurpose['name'] ?? 'this purpose') ?><?= $selectedFy ? ' in ' . e($selectedFy['label']) : '' ?>.</p>
     </div>
     <div class="flex gap-2">

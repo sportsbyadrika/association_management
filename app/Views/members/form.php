@@ -1,9 +1,16 @@
 <?php $this->layout('layouts.app'); /** @var array|null $member */ /** @var list $memberTypes */
+/** @var list $bloodGroups */ /** @var list $additionalMemberships */ /** @var list $selectedAdditional */
+$bloodGroups = $bloodGroups ?? [];
+$additionalMemberships = $additionalMemberships ?? [];
+$selectedAdditional = $selectedAdditional ?? [];
+$oldAdditional = \App\Core\Session::old('additional_membership_ids', array_map('intval', $selectedAdditional));
+$oldAdditional = is_array($oldAdditional) ? array_map('intval', $oldAdditional) : array_map('intval', $selectedAdditional);
 $isEdit = $member !== null;
 $action = $isEdit ? url('/members/' . $member['id']) : url('/members');
 $val = static fn (string $k, $d = '') => e(old($k) !== '' ? old($k) : ($member[$k] ?? $d));
 $selType = static fn ($id) => (string) (old('member_type_id') !== '' ? old('member_type_id') : ($member['member_type_id'] ?? '')) === (string) $id ? 'selected' : '';
 $selGender = static fn ($g) => (string) (old('gender') !== '' ? old('gender') : ($member['gender'] ?? '')) === $g ? 'selected' : '';
+$selBlood = static fn ($b) => (string) (old('blood_group') !== '' ? old('blood_group') : ($member['blood_group'] ?? '')) === $b ? 'selected' : '';
 ?>
 
 <h1 class="mb-6 text-2xl font-bold text-gray-900"><?= $isEdit ? 'Edit' : 'Add' ?> Member</h1>
@@ -46,6 +53,15 @@ $selGender = static fn ($g) => (string) (old('gender') !== '' ? old('gender') : 
                 </select>
             </div>
             <div>
+                <label for="blood_group" class="form-label">Blood group</label>
+                <select id="blood_group" name="blood_group" class="form-select">
+                    <option value="">— Select —</option>
+                    <?php foreach ($bloodGroups as $bg): ?>
+                        <option value="<?= e($bg) ?>" <?= $selBlood($bg) ?>><?= e($bg) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
                 <label for="family_members_count" class="form-label"># Family members</label>
                 <input type="number" id="family_members_count" name="family_members_count" min="0" max="100" value="<?= $val('family_members_count') ?>" class="form-input">
                 <?php if ($m = error_for('family_members_count')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
@@ -80,6 +96,23 @@ $selGender = static fn ($g) => (string) (old('gender') !== '' ? old('gender') : 
             <div class="sm:col-span-2 lg:col-span-2">
                 <label for="notes" class="form-label">Other details / notes</label>
                 <textarea id="notes" name="notes" rows="2" class="form-textarea"><?= $val('notes') ?></textarea>
+            </div>
+            <div class="sm:col-span-2 lg:col-span-3">
+                <label class="form-label">Additional memberships</label>
+                <?php if ($additionalMemberships === []): ?>
+                    <p class="text-sm text-gray-400">None defined. Add options under Masters → Additional Membership.</p>
+                <?php else: ?>
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <?php foreach ($additionalMemberships as $am): ?>
+                            <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                                <input type="checkbox" name="additional_membership_ids[]" value="<?= (int) $am['id'] ?>"
+                                       <?= in_array((int) $am['id'], $oldAdditional, true) ? 'checked' : '' ?>
+                                       class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                                <?= e($am['name']) ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
             <div>
                 <label for="photo" class="form-label">Photo</label>

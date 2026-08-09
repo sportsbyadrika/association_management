@@ -175,6 +175,80 @@
             });
         });
 
+        // Gift: related members with per-person contributions.
+        (function () {
+            var box = document.querySelector('[data-gift-members]');
+            if (!box) return;
+            var rowsEl = box.querySelector('[data-gm-rows]');
+            var search = box.querySelector('[data-gm-search]');
+            var addBtn = box.querySelector('[data-gm-add]');
+            var totalEl = box.querySelector('[data-gm-total]');
+            var emptyEl = box.querySelector('[data-gm-empty]');
+            var listEl = box.querySelector('datalist');
+            var valueInput = document.getElementById('value');
+            var defInput = document.getElementById('default_contribution');
+
+            function recalc() {
+                var sum = 0;
+                rowsEl.querySelectorAll('input[name="gift_member_contributions[]"]').forEach(function (i) {
+                    sum += parseFloat(i.value) || 0;
+                });
+                if (totalEl) totalEl.textContent = sum.toFixed(2);
+                var has = rowsEl.querySelector('tr') !== null;
+                if (emptyEl) emptyEl.classList.toggle('hidden', has);
+                if (has && valueInput) valueInput.value = sum.toFixed(2);
+            }
+
+            function addRow(id, name, amount) {
+                if (!id) return;
+                if (rowsEl.querySelector('input[name="gift_member_ids[]"][value="' + id + '"]')) return;
+                var tr = document.createElement('tr');
+                var td1 = document.createElement('td');
+                td1.textContent = name + ' ';
+                var hid = document.createElement('input');
+                hid.type = 'hidden'; hid.name = 'gift_member_ids[]'; hid.value = id;
+                td1.appendChild(hid);
+                var td2 = document.createElement('td');
+                var amt = document.createElement('input');
+                amt.type = 'number'; amt.step = '0.01'; amt.min = '0';
+                amt.name = 'gift_member_contributions[]'; amt.className = 'form-input'; amt.value = amount;
+                amt.addEventListener('input', recalc);
+                td2.appendChild(amt);
+                var td3 = document.createElement('td');
+                td3.className = 'text-right';
+                var rm = document.createElement('button');
+                rm.type = 'button'; rm.className = 'text-red-600 hover:underline'; rm.textContent = 'Remove';
+                rm.setAttribute('data-gm-remove', '');
+                td3.appendChild(rm);
+                tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+                rowsEl.appendChild(tr);
+                recalc();
+            }
+
+            function findOption(val) {
+                return Array.prototype.find.call(listEl.options, function (o) { return o.value === val; });
+            }
+
+            addBtn.addEventListener('click', function () {
+                var opt = findOption(search.value);
+                if (!opt) return;
+                var def = defInput && defInput.value !== '' ? (parseFloat(defInput.value) || 0).toFixed(2) : '0.00';
+                addRow(opt.getAttribute('data-id'), opt.getAttribute('data-name') || opt.value, def);
+                search.value = '';
+                search.focus();
+            });
+            search.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); }
+            });
+            rowsEl.addEventListener('click', function (e) {
+                if (e.target.matches('[data-gm-remove]')) { e.target.closest('tr').remove(); recalc(); }
+            });
+            rowsEl.querySelectorAll('input[name="gift_member_contributions[]"]').forEach(function (i) {
+                i.addEventListener('input', recalc);
+            });
+            recalc();
+        })();
+
         // Auto-hide success flashes after a few seconds.
         setTimeout(function () {
             document.querySelectorAll('[data-flash]').forEach(function (f) {

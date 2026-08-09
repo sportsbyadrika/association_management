@@ -12,10 +12,84 @@ final class Member extends Model
 
     protected array $fillable = [
         'association_id', 'member_number', 'member_type_id', 'name', 'age',
-        'gender', 'address', 'mobile', 'whatsapp', 'email',
+        'gender', 'blood_group', 'address', 'mobile', 'whatsapp', 'email',
         'family_members_count', 'occupation', 'joined_on', 'photo_path',
         'notes', 'is_active',
     ];
+
+    /**
+     * All members with the fields needed for the directory report, including
+     * the member type and a comma-separated list of additional memberships.
+     * @return list<array<string,mixed>>
+     */
+    public function directoryForReport(int $associationId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT m.id, m.member_number, m.name, mt.name AS type, m.age, m.gender,
+                    m.blood_group, m.mobile, m.whatsapp, m.email, m.family_members_count,
+                    m.occupation, m.is_active, m.photo_path,
+                    (SELECT GROUP_CONCAT(am.name ORDER BY am.name SEPARATOR ', ')
+                     FROM member_additional_memberships mam
+                     JOIN additional_memberships am ON am.id = mam.additional_membership_id
+                     WHERE mam.member_id = m.id) AS additional_memberships
+             FROM members m
+             LEFT JOIN member_types mt ON mt.id = m.member_type_id
+             WHERE m.association_id = ?
+             ORDER BY m.name ASC",
+            [$associationId]
+        );
+    }
+
+    /** IDs of additional memberships linked to a member. @return list<int> */
+    public function additionalMembershipIds(int $memberId): array
+    {
+        $rows = $this->db->fetchAll(
+            'SELECT additional_membership_id FROM member_additional_memberships WHERE member_id = ?',
+            [$memberId]
+        );
+        return array_map(static fn ($r) => (int) $r['additional_membership_id'], $rows);
+    }
+
+    /** Names of additional memberships linked to a member. @return list<string> */
+    public function additionalMembershipNames(int $memberId): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT am.name FROM member_additional_memberships mam
+             JOIN additional_memberships am ON am.id = mam.additional_membership_id
+             WHERE mam.member_id = ? ORDER BY am.name ASC",
+            [$memberId]
+        );
+        return array_map(static fn ($r) => (string) $r['name'], $rows);
+    }
+
+    /**
+     * Replace a member's additional memberships with the given (tenant-checked)
+     * set of ids.
+     * @param list<int> $ids
+     */
+    public function syncAdditionalMemberships(int $memberId, int $associationId, array $ids): void
+    {
+        $this->db->run('DELETE FROM member_additional_memberships WHERE member_id = ?', [$memberId]);
+        $valid = [];
+        foreach (array_unique(array_map('intval', $ids)) as $id) {
+            if ($id <= 0) {
+                continue;
+            }
+            $ok = (int) $this->db->fetchColumn(
+                'SELECT COUNT(*) FROM additional_memberships WHERE id = ? AND association_id = ?',
+                [$id, $associationId]
+            );
+            if ($ok > 0) {
+                $valid[] = $id;
+            }
+        }
+        foreach ($valid as $id) {
+            $this->db->run(
+                'INSERT INTO member_additional_memberships (association_id, member_id, additional_membership_id) VALUES (?, ?, ?)',
+                [$associationId, $memberId, $id]
+            );
+        }
+    }
 
     /** Whether a member number is already used within the association. */
     public function memberNumberExists(int $associationId, string $memberNumber, ?int $ignoreId = null): bool
