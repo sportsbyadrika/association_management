@@ -33,6 +33,7 @@ if ($role === 'super_admin') {
         $finance,
         ['type' => 'link', 'label' => 'Projects', 'href' => '/projects', 'prefix' => '/projects'],
         ['type' => 'link', 'label' => 'Gifts', 'href' => '/gifts', 'prefix' => '/gifts'],
+        ['type' => 'link', 'label' => 'Events', 'href' => '/events', 'prefix' => '/events'],
         ['type' => 'link', 'label' => 'Masters', 'href' => '/masters/member-types', 'prefix' => '/masters', 'extra' => ['/bank-accounts']],
         ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
     ];
@@ -43,6 +44,7 @@ if ($role === 'super_admin') {
         $finance,
         ['type' => 'link', 'label' => 'Projects', 'href' => '/projects', 'prefix' => '/projects'],
         ['type' => 'link', 'label' => 'Gifts', 'href' => '/gifts', 'prefix' => '/gifts'],
+        ['type' => 'link', 'label' => 'Events', 'href' => '/events', 'prefix' => '/events'],
         ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
     ];
 } elseif ($role === 'member') {

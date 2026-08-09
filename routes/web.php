@@ -14,6 +14,7 @@ use App\Controllers\BankAccountController;
 use App\Controllers\DashboardController;
 use App\Controllers\DemandController;
 use App\Controllers\DemandPurposeController;
+use App\Controllers\EventController;
 use App\Controllers\ExpenditureController;
 use App\Controllers\FamilyMemberController;
 use App\Controllers\FinancialYearController;
@@ -113,6 +114,15 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->get('/gifts/{id}/edit', [GiftController::class, 'edit']);
     $router->post('/gifts/{id}', [GiftController::class, 'update']);
     $router->post('/gifts/{id}/delete', [GiftController::class, 'destroy']);
+
+    // Events (with Event Type master).
+    $router->get('/events', [EventController::class, 'index']);
+    $router->get('/events/create', [EventController::class, 'create']);
+    $router->post('/events', [EventController::class, 'store']);
+    $router->get('/events/{id}', [EventController::class, 'show']);
+    $router->get('/events/{id}/edit', [EventController::class, 'edit']);
+    $router->post('/events/{id}', [EventController::class, 'update']);
+    $router->post('/events/{id}/delete', [EventController::class, 'destroy']);
 
     // Demands (bulk raise: details + member selection -> confirm -> create)
     $router->get('/demands', [DemandController::class, 'index']);
