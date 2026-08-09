@@ -45,17 +45,21 @@ $filterQs = http_build_query(array_filter([
 <div class="card overflow-hidden">
     <div class="overflow-x-auto">
         <table class="table">
-            <thead><tr><th>Date</th><th>Head</th><th>Category</th><th>Project</th><th>Mode</th><th>Bank</th><th>Remarks</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
+            <thead><tr><th>Date</th><th>Head</th><th>Category</th><th>Project</th><th>Mode</th><th>Bank</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
             <tbody>
             <?php foreach ($expenditures as $x): ?>
                 <tr>
                     <td><?= e(format_date($x['paid_on'])) ?></td>
-                    <td class="font-medium text-gray-900"><?= e($x['head_name'] ?? '—') ?></td>
+                    <td class="font-medium text-gray-900">
+                        <?= e($x['head_name'] ?? '—') ?>
+                        <?php if (!empty($x['remarks'])): ?>
+                            <span class="ml-1 cursor-help text-gray-400" title="<?= e($x['remarks']) ?>" aria-label="<?= e($x['remarks']) ?>">&#9432;</span>
+                        <?php endif; ?>
+                    </td>
                     <td class="capitalize"><?= e($x['category']) ?></td>
                     <td><?= e($x['project_name'] ?? '—') ?></td>
                     <td class="capitalize"><?= e(str_replace('_', ' ', $x['mode'])) ?></td>
                     <td><?= e($x['bank_name'] ?? '—') ?></td>
-                    <td class="max-w-xs truncate text-gray-600" title="<?= e($x['remarks'] ?? '') ?>"><?= e($x['remarks'] ?: '—') ?></td>
                     <td class="text-right font-medium text-red-600">₹ <?= money($x['amount']) ?></td>
                     <td class="whitespace-nowrap text-right">
                         <a href="<?= e(url('/expenditures/' . $x['id'] . '/edit')) ?>" class="text-brand-700 hover:underline">Edit</a>
@@ -68,7 +72,7 @@ $filterQs = http_build_query(array_filter([
                 </tr>
             <?php endforeach; ?>
             <?php if ($expenditures === []): ?>
-                <tr><td colspan="9" class="text-center text-gray-400 py-8">No expenditures yet.</td></tr>
+                <tr><td colspan="8" class="text-center text-gray-400 py-8">No expenditures yet.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>

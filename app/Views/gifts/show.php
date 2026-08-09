@@ -1,5 +1,6 @@
-<?php $this->layout('layouts.app'); /** @var array $gift */
+<?php $this->layout('layouts.app'); /** @var array $gift */ /** @var list $giftMembers */
 $isIn = $gift['direction'] === 'in';
+$giftMembers = $giftMembers ?? [];
 ?>
 
 <div class="mb-6 flex items-center justify-between">
@@ -37,3 +38,25 @@ $isIn = $gift['direction'] === 'in';
         <?php endif; ?>
     </dl>
 </div>
+
+<?php if ($giftMembers !== []): ?>
+<div class="mt-6 max-w-2xl card overflow-hidden">
+    <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+        <h2 class="font-semibold text-gray-900">Related members &amp; contributions</h2>
+        <span class="text-sm font-semibold text-gray-900">₹ <?= money(array_sum(array_map(static fn ($m) => (float) $m['contribution'], $giftMembers))) ?></span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="table">
+            <thead><tr><th>Member</th><th class="text-right">Contribution</th></tr></thead>
+            <tbody>
+            <?php foreach ($giftMembers as $gm): ?>
+                <tr>
+                    <td><?= e($gm['name']) ?><?= $gm['member_number'] ? ' <span class="text-gray-400">(' . e($gm['member_number']) . ')</span>' : '' ?></td>
+                    <td class="text-right">₹ <?= money($gm['contribution']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php endif; ?>

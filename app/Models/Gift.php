@@ -12,8 +12,61 @@ final class Gift extends Model
 
     protected array $fillable = [
         'association_id', 'gift_type_id', 'direction', 'title', 'party',
-        'member_id', 'value', 'gift_date', 'description', 'created_by',
+        'member_id', 'value', 'default_contribution', 'gift_date', 'description', 'created_by',
     ];
+
+    /**
+     * Members linked to a gift with their contribution amount and name.
+     * @return list<array<string,mixed>>
+     */
+    public function members(int $giftId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT gm.member_id, gm.contribution, m.name, m.member_number
+             FROM gift_members gm
+             JOIN members m ON m.id = gm.member_id
+             WHERE gm.gift_id = ?
+             ORDER BY m.name ASC",
+            [$giftId]
+        );
+    }
+
+    public function totalContributions(int $giftId): float
+    {
+        return (float) $this->db->fetchColumn(
+            'SELECT COALESCE(SUM(contribution),0) FROM gift_members WHERE gift_id = ?',
+            [$giftId]
+        );
+    }
+
+    /**
+     * Replace a gift's member contributions. $pairs is [[member_id, amount], ...];
+     * only members belonging to the association are stored.
+     * @param list<array{0:int,1:float}> $pairs
+     */
+    public function syncMembers(int $giftId, int $associationId, array $pairs): void
+    {
+        $this->db->run('DELETE FROM gift_members WHERE gift_id = ?', [$giftId]);
+        $seen = [];
+        foreach ($pairs as [$memberId, $amount]) {
+            $memberId = (int) $memberId;
+            if ($memberId <= 0 || isset($seen[$memberId])) {
+                continue;
+            }
+            $ok = (int) $this->db->fetchColumn(
+                'SELECT COUNT(*) FROM members WHERE id = ? AND association_id = ?',
+                [$memberId, $associationId]
+            );
+            if ($ok === 0) {
+                continue;
+            }
+            $seen[$memberId] = true;
+            $this->db->run(
+                'INSERT INTO gift_members (association_id, gift_id, member_id, contribution) VALUES (?, ?, ?, ?)',
+                [$associationId, $giftId, $memberId, round((float) $amount, 2)]
+            );
+        }
+    }
 
     /**
      * @param string $direction '' = all, or 'in' / 'out'

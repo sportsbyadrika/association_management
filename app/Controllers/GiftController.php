@@ -49,6 +49,7 @@ final class GiftController extends Controller
             'gift'    => null,
             'types'   => (new Master('gift-types'))->activeForAssociation($assocId),
             'members' => (new Member())->options($assocId),
+            'giftMembers' => [],
         ]);
         Session::clearFormState();
     }
@@ -60,7 +61,16 @@ final class GiftController extends Controller
         $data['association_id'] = $assocId;
         $data['created_by'] = Auth::id();
 
-        (new Gift())->create($data);
+        $pairs = $this->memberPairs($request);
+        // When members are listed, the gift value is the sum of contributions.
+        if ($pairs !== []) {
+            $data['value'] = array_sum(array_map(static fn ($p) => $p[1], $pairs));
+        }
+
+        $gift = new Gift();
+        $id = $gift->create($data);
+        $gift->syncMembers($id, $assocId, $pairs);
+
         $this->flash('success', 'Gift recorded.');
         $this->redirect('/gifts');
     }
@@ -72,7 +82,11 @@ final class GiftController extends Controller
         if ($gift === null) {
             Response::notFound();
         }
-        $this->view('gifts.show', ['title' => $gift['title'], 'gift' => $gift]);
+        $this->view('gifts.show', [
+            'title' => $gift['title'],
+            'gift' => $gift,
+            'giftMembers' => (new Gift())->members((int) $gift['id']),
+        ]);
     }
 
     public function edit(Request $request, array $params): void
@@ -87,6 +101,7 @@ final class GiftController extends Controller
             'gift'    => $gift,
             'types'   => (new Master('gift-types'))->activeForAssociation($assocId),
             'members' => (new Member())->options($assocId),
+            'giftMembers' => (new Gift())->members((int) $gift['id']),
         ]);
         Session::clearFormState();
     }
@@ -99,9 +114,38 @@ final class GiftController extends Controller
             Response::notFound();
         }
         $data = $this->validated($request, $assocId);
-        (new Gift())->update((int) $gift['id'], $data);
+
+        $pairs = $this->memberPairs($request);
+        if ($pairs !== []) {
+            $data['value'] = array_sum(array_map(static fn ($p) => $p[1], $pairs));
+        }
+
+        $model = new Gift();
+        $model->update((int) $gift['id'], $data);
+        $model->syncMembers((int) $gift['id'], $assocId, $pairs);
+
         $this->flash('success', 'Gift updated.');
         $this->redirect('/gifts');
+    }
+
+    /**
+     * Parse the parallel member_ids[]/contributions[] arrays into pairs.
+     * @return list<array{0:int,1:float}>
+     */
+    private function memberPairs(Request $request): array
+    {
+        $ids = (array) $request->input('gift_member_ids', []);
+        $amounts = (array) $request->input('gift_member_contributions', []);
+        $pairs = [];
+        foreach ($ids as $i => $id) {
+            $id = (int) $id;
+            if ($id <= 0) {
+                continue;
+            }
+            $amount = isset($amounts[$i]) && $amounts[$i] !== '' ? (float) $amounts[$i] : 0.0;
+            $pairs[] = [$id, $amount];
+        }
+        return $pairs;
     }
 
     public function destroy(Request $request, array $params): void
@@ -126,6 +170,7 @@ final class GiftController extends Controller
             'party'        => (string) $request->input('party', ''),
             'member_id'    => $request->input('member_id') ?: null,
             'value'        => (string) $request->input('value', '0'),
+            'default_contribution' => (string) $request->input('default_contribution', ''),
             'gift_date'    => (string) $request->input('gift_date', ''),
             'description'  => (string) $request->input('description', ''),
         ];
@@ -133,6 +178,7 @@ final class GiftController extends Controller
             'direction' => 'required|in:in,out',
             'title'     => 'required|min:2|max:180',
             'value'     => 'decimal|min_val:0',
+            'default_contribution' => 'decimal|min_val:0',
             'gift_date' => 'date',
             'description' => 'max:1000',
         ]);
@@ -149,6 +195,7 @@ final class GiftController extends Controller
         }
 
         $input['value'] = $input['value'] !== '' ? $input['value'] : '0';
+        $input['default_contribution'] = $input['default_contribution'] !== '' ? $input['default_contribution'] : null;
         $input['party'] = $input['party'] ?: null;
         $input['gift_date'] = $input['gift_date'] ?: null;
         $input['description'] = $input['description'] ?: null;
