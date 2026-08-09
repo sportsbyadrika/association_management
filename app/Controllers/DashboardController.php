@@ -26,6 +26,7 @@ final class DashboardController extends Controller
             'receipts'     => (float) $db->fetchColumn('SELECT COALESCE(SUM(amount),0) FROM receipts WHERE association_id = ?', [$assocId]),
             'expenditures' => (new Expenditure())->totalForAssociation($assocId),
             'projects'     => (int) $db->fetchColumn("SELECT COUNT(*) FROM projects WHERE association_id = ? AND status IN ('planned','active')", [$assocId]),
+            'projects_total' => (int) $db->fetchColumn('SELECT COUNT(*) FROM projects WHERE association_id = ?', [$assocId]),
         ];
 
         // Outstanding member dues, split by demand-purpose type
@@ -71,15 +72,30 @@ final class DashboardController extends Controller
             [$assocId]
         );
 
+        // Project type-wise: count, total target and total collected.
+        $projectTypeSummary = $db->fetchAll(
+            "SELECT COALESCE(pt.name, 'Unspecified') AS type,
+                    COUNT(*) AS count,
+                    COALESCE(SUM(p.target_amount), 0) AS target,
+                    COALESCE(SUM(rc.collected), 0) AS collected
+             FROM projects p
+             LEFT JOIN project_types pt ON pt.id = p.project_type_id
+             LEFT JOIN (SELECT project_id, SUM(amount) AS collected FROM receipts WHERE association_id = ? GROUP BY project_id) rc
+                 ON rc.project_id = p.id
+             WHERE p.association_id = ?
+             GROUP BY p.project_type_id, pt.name
+             ORDER BY count DESC, type ASC",
+            [$assocId, $assocId]
+        );
+
         $recentReceipts = (new Receipt())->paginateForAssociation($assocId, 1, 5)['data'];
-        $projects = array_slice((new Project())->allWithType($assocId), 0, 5);
 
         $this->view('dashboard.index', [
-            'title'            => 'Dashboard',
-            'stats'            => $stats,
-            'memberTypeCounts' => $memberTypeCounts,
-            'recentReceipts'   => $recentReceipts,
-            'projects'         => $projects,
+            'title'              => 'Dashboard',
+            'stats'              => $stats,
+            'memberTypeCounts'   => $memberTypeCounts,
+            'projectTypeSummary' => $projectTypeSummary,
+            'recentReceipts'     => $recentReceipts,
         ]);
     }
 }
