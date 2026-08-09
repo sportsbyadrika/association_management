@@ -24,7 +24,7 @@ $memberTypeCounts = $memberTypeCounts ?? [];
     $cards = [
         ['Total Receipts', '₹ ' . money($stats['receipts']), 'text-emerald-600', '/receipts'],
         ['Total Expenditure', '₹ ' . money($stats['expenditures']), 'text-red-600', '/expenditures'],
-        ['Active Projects', number_format($stats['projects']), 'text-indigo-600', '/projects'],
+        ['Active Projects', number_format($stats['projects']) . ' / ' . number_format($stats['projects_total'] ?? $stats['projects']), 'text-indigo-600', '/projects'],
     ];
     foreach ($cards as [$label, $value, $color, $href]): ?>
         <a href="<?= e(url($href)) ?>" class="card card-body block transition hover:shadow-md">
@@ -91,23 +91,36 @@ $memberTypeCounts = $memberTypeCounts ?? [];
 
     <div class="card">
         <div class="border-b border-gray-100 px-6 py-4">
-            <h2 class="font-semibold text-gray-900">Projects</h2>
+            <h2 class="font-semibold text-gray-900">Projects by type</h2>
         </div>
         <div class="overflow-x-auto">
             <table class="table">
-                <thead><tr><th>Project</th><th class="text-right">Target</th><th class="text-right">Collected</th></tr></thead>
+                <thead><tr><th>Project Type</th><th class="text-right">Count</th><th class="text-right">Target</th><th class="text-right">Collected</th></tr></thead>
                 <tbody>
-                <?php foreach ($projects as $p): ?>
+                <?php $ptTotals = ['count' => 0, 'target' => 0.0, 'collected' => 0.0]; ?>
+                <?php foreach (($projectTypeSummary ?? []) as $pt): ?>
+                    <?php $ptTotals['count'] += (int) $pt['count']; $ptTotals['target'] += (float) $pt['target']; $ptTotals['collected'] += (float) $pt['collected']; ?>
                     <tr>
-                        <td><a href="<?= e(url('/projects/' . $p['id'])) ?>" class="font-medium text-brand-700 hover:underline"><?= e($p['name']) ?></a></td>
-                        <td class="text-right">₹ <?= money($p['target_amount']) ?></td>
-                        <td class="text-right font-medium">₹ <?= money($p['collected']) ?></td>
+                        <td class="font-medium text-gray-900"><?= e($pt['type']) ?></td>
+                        <td class="text-right"><?= (int) $pt['count'] ?></td>
+                        <td class="text-right">₹ <?= money($pt['target']) ?></td>
+                        <td class="text-right font-medium text-brand-700">₹ <?= money($pt['collected']) ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <?php if ($projects === []): ?>
-                    <tr><td colspan="3" class="text-center text-gray-400">No projects yet.</td></tr>
+                <?php if (($projectTypeSummary ?? []) === []): ?>
+                    <tr><td colspan="4" class="text-center text-gray-400">No projects yet.</td></tr>
                 <?php endif; ?>
                 </tbody>
+                <?php if (($projectTypeSummary ?? []) !== []): ?>
+                <tfoot>
+                    <tr class="bg-gray-50 font-semibold">
+                        <td class="text-right">Total</td>
+                        <td class="text-right"><?= (int) $ptTotals['count'] ?></td>
+                        <td class="text-right">₹ <?= money($ptTotals['target']) ?></td>
+                        <td class="text-right">₹ <?= money($ptTotals['collected']) ?></td>
+                    </tr>
+                </tfoot>
+                <?php endif; ?>
             </table>
         </div>
     </div>
