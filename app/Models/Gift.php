@@ -118,6 +118,15 @@ final class Gift extends Model
         );
     }
 
+    /** For select dropdowns. @return list<array<string,mixed>> */
+    public function options(int $associationId): array
+    {
+        return $this->db->fetchAll(
+            'SELECT id, title FROM gifts WHERE association_id = ? ORDER BY gift_date DESC, title ASC',
+            [$associationId]
+        );
+    }
+
     /**
      * Totals of gift value by direction.
      * @return array{in:float,out:float}

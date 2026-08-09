@@ -11,8 +11,8 @@ final class Expenditure extends Model
     protected string $table = 'expenditures';
 
     protected array $fillable = [
-        'association_id', 'expenditure_head_id', 'project_id', 'category',
-        'amount', 'paid_on', 'bank_account_id', 'mode', 'remarks', 'created_by',
+        'association_id', 'expenditure_head_id', 'project_id', 'gift_id', 'event_id',
+        'category', 'amount', 'paid_on', 'bank_account_id', 'mode', 'remarks', 'created_by',
     ];
 
     /**
@@ -38,10 +38,13 @@ final class Expenditure extends Model
             $params[] = $to;
         }
 
-        $base = "SELECT e.*, eh.name AS head_name, p.name AS project_name, b.account_name AS bank_name
+        $base = "SELECT e.*, eh.name AS head_name, p.name AS project_name,
+                        g.title AS gift_name, ev.title AS event_name, b.account_name AS bank_name
                  FROM expenditures e
                  LEFT JOIN expenditure_heads eh ON eh.id = e.expenditure_head_id
                  LEFT JOIN projects p ON p.id = e.project_id
+                 LEFT JOIN gifts g ON g.id = e.gift_id
+                 LEFT JOIN events ev ON ev.id = e.event_id
                  LEFT JOIN bank_accounts b ON b.id = e.bank_account_id
                  {$where}
                  ORDER BY e.paid_on DESC, e.id DESC";

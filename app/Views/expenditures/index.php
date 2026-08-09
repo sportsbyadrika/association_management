@@ -45,7 +45,7 @@ $filterQs = http_build_query(array_filter([
 <div class="card overflow-hidden">
     <div class="overflow-x-auto">
         <table class="table">
-            <thead><tr><th>Date</th><th>Head</th><th>Category</th><th>Project</th><th>Mode</th><th>Bank</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
+            <thead><tr><th>Date</th><th>Head</th><th>Category</th><th>Linked to</th><th>Mode</th><th>Bank</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
             <tbody>
             <?php foreach ($expenditures as $x): ?>
                 <tr>
@@ -57,7 +57,7 @@ $filterQs = http_build_query(array_filter([
                         <?php endif; ?>
                     </td>
                     <td class="capitalize"><?= e($x['category']) ?></td>
-                    <td><?= e($x['project_name'] ?? '—') ?></td>
+                    <td><?= e($x['project_name'] ?? $x['gift_name'] ?? $x['event_name'] ?? '—') ?></td>
                     <td class="capitalize"><?= e(str_replace('_', ' ', $x['mode'])) ?></td>
                     <td><?= e($x['bank_name'] ?? '—') ?></td>
                     <td class="text-right font-medium text-red-600">₹ <?= money($x['amount']) ?></td>

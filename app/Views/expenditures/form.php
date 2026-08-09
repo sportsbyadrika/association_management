@@ -2,10 +2,16 @@
 /** @var array|null $expenditure */ /** @var list $heads */ /** @var list $projects */ /** @var list $bankAccounts */
 /** @var int $selectedProject */ /** @var string $selectedCategory */
 /** @var int|null $selectedHead */ /** @var string|null $selectedPaidOn */
+/** @var list $gifts */ /** @var list $events */ /** @var int $selectedGift */ /** @var int $selectedEvent */
 $exp = $expenditure ?? null;
+$gifts = $gifts ?? [];
+$events = $events ?? [];
+$selectedGift = $selectedGift ?? 0;
+$selectedEvent = $selectedEvent ?? 0;
 $selectedHead = $selectedHead ?? 0;
 $selectedPaidOn = $selectedPaidOn ?? null;
 $dCategory = (string) ($exp['category'] ?? ($selectedCategory ?? 'association'));
+$curCat = (string) old('category', $dCategory);
 $dMode = (string) ($exp['mode'] ?? 'cash');
 $dHead = (int) ($exp['expenditure_head_id'] ?? $selectedHead);
 $dPaidOn = (string) ($exp['paid_on'] ?? ($selectedPaidOn ?? date('Y-m-d')));
@@ -33,12 +39,14 @@ $backUrl = $backProject ? url('/projects/' . $backProject) : url('/expenditures'
         <div class="grid gap-5 sm:grid-cols-2">
             <div>
                 <label for="category" class="form-label">Category *</label>
-                <select id="category" name="category" class="form-select" onchange="document.getElementById('projWrap').style.display=this.value==='project'?'block':'none'">
+                <select id="category" name="category" class="form-select" data-category-select>
                     <option value="association" <?= $selCat('association') ?>>Association (general)</option>
                     <option value="project" <?= $selCat('project') ?>>Project</option>
+                    <option value="gift" <?= $selCat('gift') ?>>Gift</option>
+                    <option value="event" <?= $selCat('event') ?>>Event</option>
                 </select>
             </div>
-            <div id="projWrap" style="display:<?= $showProj ? 'block' : 'none' ?>">
+            <div data-cat-wrap="project" style="display:<?= $curCat === 'project' ? 'block' : 'none' ?>">
                 <label for="project_id" class="form-label">Project</label>
                 <select id="project_id" name="project_id" class="form-select">
                     <option value="">— Select —</option>
@@ -47,6 +55,26 @@ $backUrl = $backProject ? url('/projects/' . $backProject) : url('/expenditures'
                     <?php endforeach; ?>
                 </select>
                 <?php if ($msg = error_for('project_id')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
+            </div>
+            <div data-cat-wrap="gift" style="display:<?= $curCat === 'gift' ? 'block' : 'none' ?>">
+                <label for="gift_id" class="form-label">Gift</label>
+                <select id="gift_id" name="gift_id" class="form-select">
+                    <option value="">— Select —</option>
+                    <?php foreach ($gifts as $gopt): ?>
+                        <option value="<?= (int) $gopt['id'] ?>" <?= $sel('gift_id', $gopt['id'], $selectedGift) ?>><?= e($gopt['title']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if ($msg = error_for('gift_id')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
+            </div>
+            <div data-cat-wrap="event" style="display:<?= $curCat === 'event' ? 'block' : 'none' ?>">
+                <label for="event_id" class="form-label">Event</label>
+                <select id="event_id" name="event_id" class="form-select">
+                    <option value="">— Select —</option>
+                    <?php foreach ($events as $eopt): ?>
+                        <option value="<?= (int) $eopt['id'] ?>" <?= $sel('event_id', $eopt['id'], $selectedEvent) ?>><?= e($eopt['title']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if ($msg = error_for('event_id')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
             </div>
             <div>
                 <label for="expenditure_head_id" class="form-label">Expenditure head</label>
