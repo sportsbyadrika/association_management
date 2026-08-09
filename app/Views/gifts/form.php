@@ -65,7 +65,7 @@ $selType = static fn ($id) => (string) (old('gift_type_id') !== '' ? old('gift_t
         </div>
 
         <!-- Related members with per-person contributions -->
-        <div class="border-t border-gray-100 pt-5" data-gift-members>
+        <div class="border-t border-gray-100 pt-5" data-member-contrib="gift_member">
             <div class="mb-2 flex items-center justify-between">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Related members &amp; contributions</h2>
                 <p class="text-sm text-gray-500">Total: ₹ <span data-gm-total class="font-semibold text-gray-900">0.00</span></p>

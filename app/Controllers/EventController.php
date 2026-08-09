@@ -12,6 +12,7 @@ use App\Core\Session;
 use App\Core\Validator;
 use App\Models\Event;
 use App\Models\Master;
+use App\Models\Member;
 
 /**
  * Events tracker (with an Event Type master). Events can be linked from
@@ -43,6 +44,8 @@ final class EventController extends Controller
             'title' => 'Add Event',
             'event' => null,
             'types' => (new Master('event-types'))->activeForAssociation($assocId),
+            'members' => (new Member())->options($assocId),
+            'eventMembers' => [],
         ]);
         Session::clearFormState();
     }
@@ -54,7 +57,15 @@ final class EventController extends Controller
         $data['association_id'] = $assocId;
         $data['created_by'] = Auth::id();
 
-        $id = (new Event())->create($data);
+        $pairs = $this->memberPairs($request);
+        if ($pairs !== []) {
+            $data['value'] = array_sum(array_map(static fn ($p) => $p[1], $pairs));
+        }
+
+        $model = new Event();
+        $id = $model->create($data);
+        $model->syncMembers($id, $assocId, $pairs);
+
         $this->flash('success', 'Event created.');
         $this->redirect('/events/' . $id);
     }
@@ -68,10 +79,11 @@ final class EventController extends Controller
         }
         $model = new Event();
         $this->view('events.show', [
-            'title'     => $event['title'],
-            'event'     => $event,
-            'spent'     => $model->spent((int) $event['id']),
-            'collected' => $model->collected((int) $event['id']),
+            'title'        => $event['title'],
+            'event'        => $event,
+            'spent'        => $model->spent((int) $event['id']),
+            'collected'    => $model->collected((int) $event['id']),
+            'eventMembers' => $model->members((int) $event['id']),
         ]);
     }
 
@@ -86,6 +98,8 @@ final class EventController extends Controller
             'title' => 'Edit Event',
             'event' => $event,
             'types' => (new Master('event-types'))->activeForAssociation($assocId),
+            'members' => (new Member())->options($assocId),
+            'eventMembers' => (new Event())->members((int) $event['id']),
         ]);
         Session::clearFormState();
     }
@@ -98,9 +112,38 @@ final class EventController extends Controller
             Response::notFound();
         }
         $data = $this->validated($request, $assocId);
-        (new Event())->update((int) $event['id'], $data);
+
+        $pairs = $this->memberPairs($request);
+        if ($pairs !== []) {
+            $data['value'] = array_sum(array_map(static fn ($p) => $p[1], $pairs));
+        }
+
+        $model = new Event();
+        $model->update((int) $event['id'], $data);
+        $model->syncMembers((int) $event['id'], $assocId, $pairs);
+
         $this->flash('success', 'Event updated.');
         $this->redirect('/events/' . $event['id']);
+    }
+
+    /**
+     * Parse the parallel event_member_ids[]/contributions[] arrays into pairs.
+     * @return list<array{0:int,1:float}>
+     */
+    private function memberPairs(Request $request): array
+    {
+        $ids = (array) $request->input('event_member_ids', []);
+        $amounts = (array) $request->input('event_member_contributions', []);
+        $pairs = [];
+        foreach ($ids as $i => $id) {
+            $id = (int) $id;
+            if ($id <= 0) {
+                continue;
+            }
+            $amount = isset($amounts[$i]) && $amounts[$i] !== '' ? (float) $amounts[$i] : 0.0;
+            $pairs[] = [$id, $amount];
+        }
+        return $pairs;
     }
 
     public function destroy(Request $request, array $params): void
@@ -129,12 +172,14 @@ final class EventController extends Controller
             'registration_end'   => (string) $request->input('registration_end', ''),
             'status'             => (string) $request->input('status', 'planned'),
             'value'              => (string) $request->input('value', '0'),
+            'default_contribution' => (string) $request->input('default_contribution', ''),
             'description'        => (string) $request->input('description', ''),
         ];
         $validator = Validator::make($input, [
             'title'              => 'required|min:2|max:180',
             'status'             => 'required|in:planned,completed,cancelled',
             'value'              => 'decimal|min_val:0',
+            'default_contribution' => 'decimal|min_val:0',
             'start_date'         => 'date',
             'end_date'           => 'date',
             'registration_start' => 'date',
@@ -150,6 +195,7 @@ final class EventController extends Controller
         }
 
         $input['value'] = $input['value'] !== '' ? $input['value'] : '0';
+        $input['default_contribution'] = $input['default_contribution'] !== '' ? $input['default_contribution'] : null;
         foreach (['venue', 'location', 'start_date', 'end_date', 'registration_start', 'registration_end', 'description'] as $k) {
             $input[$k] = $input[$k] !== '' ? $input[$k] : null;
         }

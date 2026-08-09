@@ -187,10 +187,13 @@
             sync();
         });
 
-        // Gift: related members with per-person contributions.
-        (function () {
-            var box = document.querySelector('[data-gift-members]');
-            if (!box) return;
+        // Related members with per-person contributions (gifts and events).
+        // Container declares data-member-contrib="<prefix>" giving the field
+        // name prefix, e.g. "gift_member" -> gift_member_ids[]/…_contributions[].
+        document.querySelectorAll('[data-member-contrib]').forEach(function (box) {
+            var prefix = box.getAttribute('data-member-contrib');
+            var idsName = prefix + '_ids[]';
+            var amtName = prefix + '_contributions[]';
             var rowsEl = box.querySelector('[data-gm-rows]');
             var search = box.querySelector('[data-gm-search]');
             var addBtn = box.querySelector('[data-gm-add]');
@@ -199,10 +202,11 @@
             var listEl = box.querySelector('datalist');
             var valueInput = document.getElementById('value');
             var defInput = document.getElementById('default_contribution');
+            if (!rowsEl || !search || !addBtn) return;
 
             function recalc() {
                 var sum = 0;
-                rowsEl.querySelectorAll('input[name="gift_member_contributions[]"]').forEach(function (i) {
+                rowsEl.querySelectorAll('input[name="' + amtName + '"]').forEach(function (i) {
                     sum += parseFloat(i.value) || 0;
                 });
                 if (totalEl) totalEl.textContent = sum.toFixed(2);
@@ -213,17 +217,17 @@
 
             function addRow(id, name, amount) {
                 if (!id) return;
-                if (rowsEl.querySelector('input[name="gift_member_ids[]"][value="' + id + '"]')) return;
+                if (rowsEl.querySelector('input[name="' + idsName + '"][value="' + id + '"]')) return;
                 var tr = document.createElement('tr');
                 var td1 = document.createElement('td');
                 td1.textContent = name + ' ';
                 var hid = document.createElement('input');
-                hid.type = 'hidden'; hid.name = 'gift_member_ids[]'; hid.value = id;
+                hid.type = 'hidden'; hid.name = idsName; hid.value = id;
                 td1.appendChild(hid);
                 var td2 = document.createElement('td');
                 var amt = document.createElement('input');
                 amt.type = 'number'; amt.step = '0.01'; amt.min = '0';
-                amt.name = 'gift_member_contributions[]'; amt.className = 'form-input'; amt.value = amount;
+                amt.name = amtName; amt.className = 'form-input'; amt.value = amount;
                 amt.addEventListener('input', recalc);
                 td2.appendChild(amt);
                 var td3 = document.createElement('td');
@@ -255,11 +259,11 @@
             rowsEl.addEventListener('click', function (e) {
                 if (e.target.matches('[data-gm-remove]')) { e.target.closest('tr').remove(); recalc(); }
             });
-            rowsEl.querySelectorAll('input[name="gift_member_contributions[]"]').forEach(function (i) {
+            rowsEl.querySelectorAll('input[name="' + amtName + '"]').forEach(function (i) {
                 i.addEventListener('input', recalc);
             });
             recalc();
-        })();
+        });
 
         // Auto-hide success flashes after a few seconds.
         setTimeout(function () {
