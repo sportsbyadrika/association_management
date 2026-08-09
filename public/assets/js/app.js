@@ -175,6 +175,18 @@
             });
         });
 
+        // Category selector -> show the matching sub-entity picker.
+        document.querySelectorAll('[data-category-select]').forEach(function (sel) {
+            var wraps = document.querySelectorAll('[data-cat-wrap]');
+            function sync() {
+                wraps.forEach(function (w) {
+                    w.style.display = w.getAttribute('data-cat-wrap') === sel.value ? 'block' : 'none';
+                });
+            }
+            sel.addEventListener('change', sync);
+            sync();
+        });
+
         // Gift: related members with per-person contributions.
         (function () {
             var box = document.querySelector('[data-gift-members]');

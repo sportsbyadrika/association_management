@@ -50,14 +50,14 @@ $filterQs = http_build_query(array_filter([
 <div class="card overflow-hidden">
     <div class="overflow-x-auto">
         <table class="table">
-            <thead><tr><th>Date</th><th>Member</th><th>Income Head</th><th>Project</th><th>Mode</th><th>Bank</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
+            <thead><tr><th>Date</th><th>Member</th><th>Income Head</th><th>Linked to</th><th>Mode</th><th>Bank</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
             <tbody>
             <?php foreach ($receipts as $r): ?>
                 <tr>
                     <td><?= e(format_date($r['received_on'])) ?></td>
                     <td class="font-medium text-gray-900"><?= e($r['member_name'] ?? '—') ?></td>
                     <td><?= e($r['income_head_name'] ?? '—') ?></td>
-                    <td><?= e($r['project_name'] ?? '—') ?></td>
+                    <td><?= e($r['project_name'] ?? $r['gift_name'] ?? $r['event_name'] ?? '—') ?></td>
                     <td class="capitalize"><?= e(str_replace('_', ' ', $r['mode'])) ?></td>
                     <td><?= e($r['bank_name'] ?? '—') ?></td>
                     <td class="text-right font-medium text-brand-700">₹ <?= money($r['amount']) ?></td>

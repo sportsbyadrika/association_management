@@ -24,6 +24,7 @@ final class Master extends Model
         'expenditure-heads'     => 'expenditure_heads',
         'project-types'         => 'project_types',
         'gift-types'            => 'gift_types',
+        'event-types'           => 'event_types',
     ];
 
     /** @var array<string,string> */
@@ -35,6 +36,7 @@ final class Master extends Model
         'expenditure-heads'     => 'Expenditure Head',
         'project-types'         => 'Project Type',
         'gift-types'            => 'Gift Type',
+        'event-types'           => 'Event Type',
     ];
 
     public function __construct(string $key)

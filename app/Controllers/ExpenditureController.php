@@ -11,7 +11,9 @@ use App\Core\Response;
 use App\Core\Session;
 use App\Core\Validator;
 use App\Models\BankAccount;
+use App\Models\Event;
 use App\Models\Expenditure;
+use App\Models\Gift;
 use App\Models\Master;
 use App\Models\Project;
 
@@ -55,14 +57,25 @@ final class ExpenditureController extends Controller
         // re-enters amount and remarks.
         $selectedHead = (int) $request->input('expenditure_head_id', 0);
         $paidOn = (string) $request->input('paid_on', '');
+        $selectedGift = (int) $request->input('gift_id', 0);
+        $selectedEvent = (int) $request->input('event_id', 0);
+        $category = (string) $request->input('category', '');
+        if ($category === '') {
+            $category = $selectedProject > 0 ? 'project'
+                : ($selectedGift > 0 ? 'gift' : ($selectedEvent > 0 ? 'event' : 'association'));
+        }
         $this->view('expenditures.form', [
             'title'            => 'Record Expenditure',
             'expenditure'      => null,
             'heads'            => (new Master('expenditure-heads'))->activeForAssociation($assocId),
             'projects'         => (new Project())->options($assocId),
+            'gifts'            => (new Gift())->options($assocId),
+            'events'           => (new Event())->options($assocId),
             'bankAccounts'     => (new BankAccount())->options($assocId),
             'selectedProject'  => $selectedProject,
-            'selectedCategory' => $selectedProject > 0 ? 'project' : 'association',
+            'selectedGift'     => $selectedGift,
+            'selectedEvent'    => $selectedEvent,
+            'selectedCategory' => $category,
             'selectedHead'     => $selectedHead,
             'selectedPaidOn'   => $paidOn !== '' && strtotime($paidOn) ? $paidOn : null,
             'backProject'      => $backProject,
@@ -75,10 +88,9 @@ final class ExpenditureController extends Controller
         $assocId = Auth::associationId();
         $input = $this->validatedInput($request);
 
-        (new Expenditure())->create([
+        (new Expenditure())->create(array_merge([
             'association_id'      => $assocId,
             'expenditure_head_id' => $input['expenditure_head_id'],
-            'project_id'          => $input['category'] === 'project' ? $input['project_id'] : null,
             'category'            => $input['category'],
             'amount'              => $input['amount'],
             'paid_on'             => $input['paid_on'],
@@ -86,7 +98,7 @@ final class ExpenditureController extends Controller
             'mode'                => $input['mode'],
             'remarks'             => $input['remarks'] ?: null,
             'created_by'          => Auth::id(),
-        ]);
+        ], $this->categoryLinks($input)));
 
         // "Save & add another": reopen the form preserving category, project,
         // head and date so only amount + remarks need re-entry.
@@ -117,8 +129,12 @@ final class ExpenditureController extends Controller
             'expenditure'      => $exp,
             'heads'            => (new Master('expenditure-heads'))->activeForAssociation($assocId),
             'projects'         => (new Project())->options($assocId),
+            'gifts'            => (new Gift())->options($assocId),
+            'events'           => (new Event())->options($assocId),
             'bankAccounts'     => (new BankAccount())->options($assocId),
             'selectedProject'  => (int) ($exp['project_id'] ?? 0),
+            'selectedGift'     => (int) ($exp['gift_id'] ?? 0),
+            'selectedEvent'    => (int) ($exp['event_id'] ?? 0),
             'selectedCategory' => (string) $exp['category'],
         ]);
         Session::clearFormState();
@@ -133,16 +149,15 @@ final class ExpenditureController extends Controller
         }
         $input = $this->validatedInput($request);
 
-        (new Expenditure())->update((int) $exp['id'], [
+        (new Expenditure())->update((int) $exp['id'], array_merge([
             'expenditure_head_id' => $input['expenditure_head_id'],
-            'project_id'          => $input['category'] === 'project' ? $input['project_id'] : null,
             'category'            => $input['category'],
             'amount'              => $input['amount'],
             'paid_on'             => $input['paid_on'],
             'bank_account_id'     => $input['bank_account_id'],
             'mode'                => $input['mode'],
             'remarks'             => $input['remarks'] ?: null,
-        ]);
+        ], $this->categoryLinks($input)));
 
         if ($this->wantsSaveNew($request)) {
             $this->flash('success', 'Expenditure updated. Enter the next one.');
@@ -167,7 +182,10 @@ final class ExpenditureController extends Controller
     private function presetQuery(Request $request, array $input): string
     {
         $params = array_filter([
+            'category'            => $input['category'],
             'project_id'          => $input['category'] === 'project' ? $input['project_id'] : null,
+            'gift_id'             => $input['category'] === 'gift' ? $input['gift_id'] : null,
+            'event_id'            => $input['category'] === 'event' ? $input['event_id'] : null,
             'expenditure_head_id' => $input['expenditure_head_id'],
             'paid_on'             => $input['paid_on'],
             'back_project'        => ((int) $request->input('back_project', 0)) ?: null,
@@ -188,6 +206,8 @@ final class ExpenditureController extends Controller
         $input = [
             'expenditure_head_id' => $request->input('expenditure_head_id') ?: null,
             'project_id' => $request->input('project_id') ?: null,
+            'gift_id'    => $request->input('gift_id') ?: null,
+            'event_id'   => $request->input('event_id') ?: null,
             'category'   => (string) $request->input('category', 'association'),
             'amount'     => (string) $request->input('amount', ''),
             'paid_on'    => (string) $request->input('paid_on', ''),
@@ -196,7 +216,7 @@ final class ExpenditureController extends Controller
             'remarks'    => (string) $request->input('remarks', ''),
         ];
         $validator = Validator::make($input, [
-            'category' => 'required|in:project,association',
+            'category' => 'required|in:project,association,gift,event',
             'amount'   => 'required|decimal|min_val:0.01',
             'paid_on'  => 'required|date',
             'mode'     => 'required|in:cash,fund_transfer',
@@ -208,12 +228,32 @@ final class ExpenditureController extends Controller
         if ($input['category'] === 'project' && $input['project_id'] === null) {
             $this->withErrors(['project_id' => 'Select the project this expense belongs to.'], $input);
         }
+        if ($input['category'] === 'gift' && $input['gift_id'] === null) {
+            $this->withErrors(['gift_id' => 'Select the gift this expense belongs to.'], $input);
+        }
+        if ($input['category'] === 'event' && $input['event_id'] === null) {
+            $this->withErrors(['event_id' => 'Select the event this expense belongs to.'], $input);
+        }
         if ($input['mode'] === 'fund_transfer' && $input['bank_account_id'] === null) {
             $this->withErrors(['bank_account_id' => 'Select the bank account for a fund transfer.'], $input);
         }
         $this->assertTenant($assocId, $input);
 
         return $input;
+    }
+
+    /**
+     * Map the category to the correct link column, nulling the others.
+     * @param array<string,mixed> $input
+     * @return array{project_id:?int,gift_id:?int,event_id:?int}
+     */
+    private function categoryLinks(array $input): array
+    {
+        return [
+            'project_id' => $input['category'] === 'project' ? $input['project_id'] : null,
+            'gift_id'    => $input['category'] === 'gift' ? $input['gift_id'] : null,
+            'event_id'   => $input['category'] === 'event' ? $input['event_id'] : null,
+        ];
     }
 
     public function destroy(Request $request, array $params): void
@@ -246,6 +286,12 @@ final class ExpenditureController extends Controller
         }
         if ($input['project_id'] !== null && (new Project())->findForAssociation((int) $input['project_id'], $assocId) === null) {
             $this->withErrors(['project_id' => 'Invalid project.'], $input);
+        }
+        if (($input['gift_id'] ?? null) !== null && (new Gift())->findForAssociation((int) $input['gift_id'], $assocId) === null) {
+            $this->withErrors(['gift_id' => 'Invalid gift.'], $input);
+        }
+        if (($input['event_id'] ?? null) !== null && (new Event())->findForAssociation((int) $input['event_id'], $assocId) === null) {
+            $this->withErrors(['event_id' => 'Invalid event.'], $input);
         }
         if ($input['bank_account_id'] !== null && (new BankAccount())->findForAssociation((int) $input['bank_account_id'], $assocId) === null) {
             $this->withErrors(['bank_account_id' => 'Invalid bank account.'], $input);

@@ -1,6 +1,7 @@
 <?php $this->layout('layouts.app');
 /** @var array|null $receipt */ /** @var list $members */ /** @var list $incomeHeads */ /** @var list $projects */ /** @var list $bankAccounts */
 /** @var array|null $demand */ /** @var int $demandId */ /** @var string $prefillAmount */ /** @var int $returnLedger */
+/** @var list $gifts */ /** @var list $events */ /** @var int $selectedGift */ /** @var int $selectedEvent */ /** @var string $selectedCategory */
 $receipt = $receipt ?? null;
 $demand = $demand ?? null;
 $demandId = $demandId ?? 0;
@@ -8,14 +9,22 @@ $prefillAmount = $prefillAmount ?? '';
 $returnLedger = $returnLedger ?? 0;
 $selectedIncomeHead = $selectedIncomeHead ?? 0;
 $demandPurposeName = $demandPurposeName ?? null;
+$gifts = $gifts ?? [];
+$events = $events ?? [];
+$selectedGift = $selectedGift ?? 0;
+$selectedEvent = $selectedEvent ?? 0;
+$selectedCategory = $selectedCategory ?? 'general';
 $cancelUrl = $returnLedger > 0 ? url('/members/' . $returnLedger . '/ledger') : url('/receipts');
 $action = $receipt ? url('/receipts/' . $receipt['id']) : url('/receipts');
 $heading = $receipt ? 'Edit Receipt' : 'Record Receipt';
 $dMode = (string) ($receipt['mode'] ?? 'cash');
 $dAmount = $prefillAmount !== '' ? $prefillAmount : (string) ($receipt['amount'] ?? '');
 $dReceivedOn = (string) ($receipt['received_on'] ?? date('Y-m-d'));
+$dCategory = (string) ($receipt['category'] ?? $selectedCategory);
+$curCat = (string) old('category', $dCategory);
 $sel = static fn (string $field, $id, $default = 0) => (int) (old($field) !== '' ? old($field) : $default) === (int) $id ? 'selected' : '';
 $selMode = static fn ($m) => (string) old('mode', $dMode) === $m ? 'selected' : '';
+$selCat = static fn ($c) => $curCat === $c ? 'selected' : '';
 ?>
 
 <div class="mb-6">
@@ -59,15 +68,47 @@ $selMode = static fn ($m) => (string) old('mode', $dMode) === $m ? 'selected' : 
                 </select>
                 <?php if ($msg = error_for('income_head_id')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
             </div>
+            <?php if ($demand === null): ?>
             <div>
-                <label for="project_id" class="form-label">Project (optional)</label>
+                <label for="category" class="form-label">Category</label>
+                <select id="category" name="category" class="form-select" data-category-select>
+                    <option value="general" <?= $selCat('general') ?>>General / subscription</option>
+                    <option value="project" <?= $selCat('project') ?>>Project</option>
+                    <option value="gift" <?= $selCat('gift') ?>>Gift</option>
+                    <option value="event" <?= $selCat('event') ?>>Event</option>
+                </select>
+            </div>
+            <div data-cat-wrap="project" style="display:<?= $curCat === 'project' ? 'block' : 'none' ?>">
+                <label for="project_id" class="form-label">Project</label>
                 <select id="project_id" name="project_id" class="form-select">
-                    <option value="">— None (subscription) —</option>
+                    <option value="">— Select —</option>
                     <?php foreach ($projects as $p): ?>
                         <option value="<?= (int) $p['id'] ?>" <?= $sel('project_id', $p['id'], $selectedProject) ?>><?= e($p['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <?php if ($msg = error_for('project_id')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
             </div>
+            <div data-cat-wrap="gift" style="display:<?= $curCat === 'gift' ? 'block' : 'none' ?>">
+                <label for="gift_id" class="form-label">Gift</label>
+                <select id="gift_id" name="gift_id" class="form-select">
+                    <option value="">— Select —</option>
+                    <?php foreach ($gifts as $gopt): ?>
+                        <option value="<?= (int) $gopt['id'] ?>" <?= $sel('gift_id', $gopt['id'], $selectedGift) ?>><?= e($gopt['title']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if ($msg = error_for('gift_id')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
+            </div>
+            <div data-cat-wrap="event" style="display:<?= $curCat === 'event' ? 'block' : 'none' ?>">
+                <label for="event_id" class="form-label">Event</label>
+                <select id="event_id" name="event_id" class="form-select">
+                    <option value="">— Select —</option>
+                    <?php foreach ($events as $eopt): ?>
+                        <option value="<?= (int) $eopt['id'] ?>" <?= $sel('event_id', $eopt['id'], $selectedEvent) ?>><?= e($eopt['title']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if ($msg = error_for('event_id')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
+            </div>
+            <?php endif; ?>
             <div>
                 <label for="amount" class="form-label">Amount (₹) *</label>
                 <input type="number" step="0.01" min="0.01" id="amount" name="amount" value="<?= old('amount', $dAmount) ?>" required class="form-input">

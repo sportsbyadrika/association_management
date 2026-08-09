@@ -22,6 +22,7 @@ final class Defaults
             'project_types'        => ['General', 'Infrastructure', 'Welfare'],
             'gift_types'           => ['Cash', 'In-kind', 'Trophy', 'Certificate', 'Other'],
             'additional_memberships' => ['Executive Committee', 'Sports Wing', 'Cultural Wing', 'Youth Wing', 'Women Wing'],
+            'event_types'          => ['Annual Day', 'Festival', 'Meeting', 'Sports', 'Other'],
         ];
 
         foreach ($sets as $table => $names) {

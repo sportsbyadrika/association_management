@@ -11,9 +11,9 @@ final class Receipt extends Model
     protected string $table = 'receipts';
 
     protected array $fillable = [
-        'association_id', 'member_id', 'income_head_id', 'project_id',
-        'demand_id', 'amount', 'mode', 'bank_account_id', 'received_on',
-        'remarks', 'created_by',
+        'association_id', 'member_id', 'income_head_id', 'category', 'project_id',
+        'gift_id', 'event_id', 'demand_id', 'amount', 'mode', 'bank_account_id',
+        'received_on', 'remarks', 'created_by',
     ];
 
     /**
@@ -45,11 +45,13 @@ final class Receipt extends Model
         }
 
         $base = "SELECT r.*, m.name AS member_name, m.member_number, ih.name AS income_head_name,
-                        p.name AS project_name, b.account_name AS bank_name
+                        p.name AS project_name, g.title AS gift_name, ev.title AS event_name, b.account_name AS bank_name
                  FROM receipts r
                  LEFT JOIN members m ON m.id = r.member_id
                  LEFT JOIN income_heads ih ON ih.id = r.income_head_id
                  LEFT JOIN projects p ON p.id = r.project_id
+                 LEFT JOIN gifts g ON g.id = r.gift_id
+                 LEFT JOIN events ev ON ev.id = r.event_id
                  LEFT JOIN bank_accounts b ON b.id = r.bank_account_id
                  {$where}
                  ORDER BY r.received_on DESC, r.id DESC";
