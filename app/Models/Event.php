@@ -13,8 +13,61 @@ final class Event extends Model
     protected array $fillable = [
         'association_id', 'event_type_id', 'title', 'venue', 'location',
         'start_date', 'end_date', 'registration_start', 'registration_end',
-        'status', 'value', 'description', 'created_by',
+        'status', 'value', 'default_contribution', 'description', 'created_by',
     ];
+
+    /**
+     * Members linked to an event with their contribution amount and name.
+     * @return list<array<string,mixed>>
+     */
+    public function members(int $eventId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT em.member_id, em.contribution, m.name, m.member_number
+             FROM event_members em
+             JOIN members m ON m.id = em.member_id
+             WHERE em.event_id = ?
+             ORDER BY m.name ASC",
+            [$eventId]
+        );
+    }
+
+    public function totalContributions(int $eventId): float
+    {
+        return (float) $this->db->fetchColumn(
+            'SELECT COALESCE(SUM(contribution),0) FROM event_members WHERE event_id = ?',
+            [$eventId]
+        );
+    }
+
+    /**
+     * Replace an event's member contributions. $pairs is [[member_id, amount], ...];
+     * only members belonging to the association are stored.
+     * @param list<array{0:int,1:float}> $pairs
+     */
+    public function syncMembers(int $eventId, int $associationId, array $pairs): void
+    {
+        $this->db->run('DELETE FROM event_members WHERE event_id = ?', [$eventId]);
+        $seen = [];
+        foreach ($pairs as [$memberId, $amount]) {
+            $memberId = (int) $memberId;
+            if ($memberId <= 0 || isset($seen[$memberId])) {
+                continue;
+            }
+            $ok = (int) $this->db->fetchColumn(
+                'SELECT COUNT(*) FROM members WHERE id = ? AND association_id = ?',
+                [$memberId, $associationId]
+            );
+            if ($ok === 0) {
+                continue;
+            }
+            $seen[$memberId] = true;
+            $this->db->run(
+                'INSERT INTO event_members (association_id, event_id, member_id, contribution) VALUES (?, ?, ?, ?)',
+                [$associationId, $eventId, $memberId, round((float) $amount, 2)]
+            );
+        }
+    }
 
     /**
      * @return array{data:list<array<string,mixed>>,total:int,page:int,perPage:int,pages:int}

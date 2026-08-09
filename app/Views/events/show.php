@@ -1,4 +1,5 @@
-<?php $this->layout('layouts.app'); /** @var array $event */ /** @var float $spent */ /** @var float $collected */
+<?php $this->layout('layouts.app'); /** @var array $event */ /** @var float $spent */ /** @var float $collected */ /** @var list $eventMembers */
+$eventMembers = $eventMembers ?? [];
 $statusBadge = [
     'planned'   => 'bg-sky-100 text-sky-800',
     'completed' => 'bg-brand-100 text-brand-800',
@@ -51,3 +52,25 @@ $statusBadge = [
         <?php endif; ?>
     </dl>
 </div>
+
+<?php if ($eventMembers !== []): ?>
+<div class="mt-6 max-w-3xl card overflow-hidden">
+    <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+        <h2 class="font-semibold text-gray-900">Related members &amp; contributions</h2>
+        <span class="text-sm font-semibold text-gray-900">₹ <?= money(array_sum(array_map(static fn ($m) => (float) $m['contribution'], $eventMembers))) ?></span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="table">
+            <thead><tr><th>Member</th><th class="text-right">Contribution</th></tr></thead>
+            <tbody>
+            <?php foreach ($eventMembers as $em): ?>
+                <tr>
+                    <td><?= e($em['name']) ?><?= $em['member_number'] ? ' <span class="text-gray-400">(' . e($em['member_number']) . ')</span>' : '' ?></td>
+                    <td class="text-right">₹ <?= money($em['contribution']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php endif; ?>
