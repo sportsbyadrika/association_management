@@ -15,20 +15,23 @@ $fyQ = $fyValue !== '' ? '&fy=' . urlencode($fyValue) : '';
         <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p class="mt-1 text-sm text-gray-500">Overview of your association's activity.</p>
     </div>
-    <?php if ($financialYears !== []): ?>
-        <form method="get" action="<?= e(url('/dashboard')) ?>" class="flex items-end gap-2">
-            <div>
-                <label for="fy" class="form-label">Financial year</label>
-                <select id="fy" name="fy" class="form-select" onchange="this.form.submit()">
-                    <?php foreach ($financialYears as $fy): ?>
-                        <option value="<?= (int) $fy['id'] ?>" <?= $fyValue === (string) $fy['id'] ? 'selected' : '' ?>><?= e($fy['label']) ?></option>
-                    <?php endforeach; ?>
-                    <option value="all" <?= (string) $fyParam === 'all' ? 'selected' : '' ?>>All years</option>
-                </select>
-            </div>
-            <noscript><button type="submit" class="btn-secondary btn-sm">Apply</button></noscript>
-        </form>
-    <?php endif; ?>
+    <div class="flex flex-wrap items-end gap-2">
+        <a href="<?= e(url('/reports/income-expenditure')) ?>" class="btn-secondary btn-sm">Income &amp; Expenditure</a>
+        <?php if ($financialYears !== []): ?>
+            <form method="get" action="<?= e(url('/dashboard')) ?>" class="flex items-end gap-2">
+                <div>
+                    <label for="fy" class="form-label">Financial year</label>
+                    <select id="fy" name="fy" class="form-select" onchange="this.form.submit()">
+                        <?php foreach ($financialYears as $fy): ?>
+                            <option value="<?= (int) $fy['id'] ?>" <?= $fyValue === (string) $fy['id'] ? 'selected' : '' ?>><?= e($fy['label']) ?></option>
+                        <?php endforeach; ?>
+                        <option value="all" <?= (string) $fyParam === 'all' ? 'selected' : '' ?>>All years</option>
+                    </select>
+                </div>
+                <noscript><button type="submit" class="btn-secondary btn-sm">Apply</button></noscript>
+            </form>
+        <?php endif; ?>
+    </div>
 </div>
 
 <?php if ($selectedFy !== null): ?>
