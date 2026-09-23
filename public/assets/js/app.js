@@ -265,6 +265,41 @@
             recalc();
         });
 
+        // Member ledger: summary cards filter the entries table by bucket.
+        document.querySelectorAll('[data-ledger]').forEach(function (box) {
+            var rows = box.querySelectorAll('tr[data-row]');
+            var emptyRow = box.querySelector('[data-ledger-empty]');
+            var label = box.querySelector('[data-ledger-label]');
+            var showAll = box.querySelector('[data-ledger-showall]');
+            var balCols = box.querySelectorAll('[data-bal-col]');
+            var buttons = box.querySelectorAll('[data-ledger-filter]');
+            var names = { all: 'All entries', subscription: 'Subscription', project: 'Projects', gift: 'Gifts', event: 'Events' };
+
+            function apply(filter) {
+                var shown = 0;
+                rows.forEach(function (r) {
+                    var ok = filter === 'all' || r.getAttribute('data-bucket') === filter;
+                    r.classList.toggle('hidden', !ok);
+                    if (ok) shown++;
+                });
+                if (emptyRow) emptyRow.classList.toggle('hidden', shown > 0 || rows.length === 0);
+                if (label) label.textContent = names[filter] || 'All entries';
+                if (showAll) showAll.classList.toggle('hidden', filter === 'all');
+                // The running balance is global, so it's only meaningful for "all".
+                balCols.forEach(function (c) { c.classList.toggle('hidden', filter !== 'all'); });
+                buttons.forEach(function (b) {
+                    var active = b.getAttribute('data-ledger-filter') === filter && filter !== 'all';
+                    b.classList.toggle('ring-2', active);
+                    b.classList.toggle('ring-brand-400', active);
+                });
+            }
+
+            buttons.forEach(function (b) {
+                b.addEventListener('click', function () { apply(b.getAttribute('data-ledger-filter')); });
+            });
+            apply('all');
+        });
+
         // Auto-hide success flashes after a few seconds.
         setTimeout(function () {
             document.querySelectorAll('[data-flash]').forEach(function (f) {

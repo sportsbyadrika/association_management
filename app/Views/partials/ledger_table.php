@@ -14,6 +14,7 @@ $typeBadge = static fn (string $t): string => [
     'Adjustment' => 'bg-indigo-100 text-indigo-800',
 ][$t] ?? 'bg-gray-100 text-gray-600';
 ?>
+<?php if (($ledgerCards ?? true)): ?>
 <div class="grid gap-4 sm:grid-cols-3">
     <div class="card card-body">
         <p class="text-sm text-gray-500">Total dues</p>
@@ -31,21 +32,22 @@ $typeBadge = static fn (string $t): string => [
         <p class="mt-1 text-xl font-bold <?= $ledger['balance'] > 0 ? 'text-amber-600' : 'text-brand-700' ?>">₹ <?= money($ledger['balance']) ?></p>
     </div>
 </div>
+<?php endif; ?>
 
 <div class="mt-4 card overflow-hidden">
     <div class="overflow-x-auto">
-        <table class="table">
+        <table class="table" data-ledger-table>
             <thead>
                 <tr>
                     <th>Date</th><th>Type</th><th>Description</th>
-                    <th class="text-right">Debit</th><th class="text-right">Credit</th><th class="text-right">Balance</th>
+                    <th class="text-right">Debit</th><th class="text-right">Credit</th><th class="text-right" data-bal-col>Balance</th>
                     <th>Status / Action</th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($ledger['rows'] as $row): ?>
                 <?php $isDemand = ($row['kind'] ?? '') === 'demand'; ?>
-                <tr>
+                <tr data-row data-bucket="<?= e($row['bucket'] ?? 'subscription') ?>">
                     <td><?= e(format_date($row['date'])) ?></td>
                     <td>
                         <span class="badge <?= $typeBadge($row['type']) ?>"><?= e($row['type']) ?></span>
@@ -53,7 +55,7 @@ $typeBadge = static fn (string $t): string => [
                     <td class="text-gray-600"><?= e($row['description']) ?></td>
                     <td class="text-right"><?= $row['debit'] > 0 ? '₹ ' . money($row['debit']) : '—' ?></td>
                     <td class="text-right"><?= $row['credit'] > 0 ? '₹ ' . money($row['credit']) : '—' ?></td>
-                    <td class="text-right font-medium">₹ <?= money($row['balance']) ?></td>
+                    <td class="text-right font-medium" data-bal-col>₹ <?= money($row['balance']) ?></td>
                     <td>
                         <?php if ($isDemand): ?>
                             <span class="badge <?= $statusBadge($row['status']) ?> capitalize"><?= e($row['status']) ?></span>
@@ -80,6 +82,7 @@ $typeBadge = static fn (string $t): string => [
             <?php if ($ledger['rows'] === []): ?>
                 <tr><td colspan="7" class="text-center text-gray-400 py-8">No ledger entries yet.</td></tr>
             <?php endif; ?>
+            <tr data-ledger-empty class="hidden"><td colspan="7" class="text-center text-gray-400 py-8">No entries for this selection.</td></tr>
             </tbody>
         </table>
     </div>

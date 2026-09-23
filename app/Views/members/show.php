@@ -65,13 +65,14 @@ $additionalMemberships = $additionalMemberships ?? [];
     <div class="lg:col-span-2">
         <div class="mb-3 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900">Ledger</h2>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
                 <a href="<?= e(url('/demands/create?member_id=' . $member['id'])) ?>" class="btn-secondary btn-sm">Raise due</a>
                 <a href="<?= e(url('/receipts/create?member_id=' . $member['id'])) ?>" class="btn-secondary btn-sm">Record receipt</a>
-                <a href="<?= e(url('/members/' . $member['id'] . '/ledger')) ?>" class="btn-secondary btn-sm">Full ledger</a>
+                <a href="<?= e(url('/reports/member-ledger?member_id=' . $member['id'] . '&format=csv')) ?>" class="btn-secondary btn-sm">CSV</a>
+                <a href="<?= e(url('/reports/member-ledger?member_id=' . $member['id'] . '&format=pdf')) ?>" class="btn-secondary btn-sm">PDF</a>
             </div>
         </div>
-        <?php include dirname(__DIR__) . '/partials/ledger_table.php'; ?>
+        <?php include dirname(__DIR__) . '/partials/ledger_full.php'; ?>
     </div>
 </div>
 

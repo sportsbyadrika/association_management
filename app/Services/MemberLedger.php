@@ -32,12 +32,22 @@ final class MemberLedger
         }
 
         $entries = [];
+        $subscriptionDue = 0.0;
         foreach ($demands as $d) {
             if ($d['status'] === 'cancelled') {
                 continue;
             }
             $amount = (float) $d['amount'];
             $paid = (float) ($paidByDemand[(int) $d['id']] ?? 0.0);
+
+            // Which "bucket" the due belongs to: an activity link wins, else it
+            // is a subscription/general due.
+            $bucket = !empty($d['project_id']) ? 'project'
+                : (!empty($d['gift_id']) ? 'gift'
+                : (!empty($d['event_id']) ? 'event' : 'subscription'));
+            if ($bucket === 'subscription') {
+                $subscriptionDue += $amount;
+            }
 
             // A demand can be marked paid manually (no receipt) as well as by
             // receipts covering it.
@@ -68,6 +78,7 @@ final class MemberLedger
                 'date'        => $demandDate,
                 'type'        => 'Due',
                 'kind'        => 'demand',
+                'bucket'      => $bucket,
                 'demand_id'   => (int) $d['id'],
                 'status'      => $status,
                 'remaining'   => $remaining,
@@ -86,6 +97,7 @@ final class MemberLedger
                     'date'        => $when,
                     'type'        => 'Adjustment',
                     'kind'        => 'adjustment',
+                    'bucket'      => $bucket,
                     'description' => 'Marked paid (no receipt)',
                     'debit'       => 0.0,
                     'credit'      => $settle,
@@ -93,11 +105,16 @@ final class MemberLedger
                 ];
             }
         }
+        $received = ['subscription' => 0.0, 'project' => 0.0, 'gift' => 0.0, 'event' => 0.0];
         foreach ($receipts as $r) {
+            $cat = (string) ($r['category'] ?? 'general');
+            $bucket = in_array($cat, ['project', 'gift', 'event'], true) ? $cat : 'subscription';
+            $received[$bucket] += (float) $r['amount'];
             $entries[] = [
                 'date'        => $r['received_on'],
                 'type'        => 'Receipt',
                 'kind'        => 'receipt',
+                'bucket'      => $bucket,
                 'description' => 'Payment received' . ($r['remarks'] ? ' — ' . $r['remarks'] : '') . ' (' . str_replace('_', ' ', (string) $r['mode']) . ')',
                 'debit'       => 0.0,
                 'credit'      => (float) $r['amount'],
@@ -123,12 +140,30 @@ final class MemberLedger
         }
         unset($e);
 
+        $activitiesReceived = $received['project'] + $received['gift'] + $received['event'];
+        $summary = [
+            'subscription' => [
+                'due'         => $subscriptionDue,
+                'received'    => $received['subscription'],
+                'outstanding' => max(0.0, $subscriptionDue - $received['subscription']),
+            ],
+            'received' => [
+                'subscription' => $received['subscription'],
+                'project'      => $received['project'],
+                'gift'         => $received['gift'],
+                'event'        => $received['event'],
+                'activities'   => $activitiesReceived,
+                'total'        => $received['subscription'] + $activitiesReceived,
+            ],
+        ];
+
         return [
             'rows'          => $entries,
             'total_demand'  => $totalDemand,
             'total_paid'    => $totalPaid,
             'total_adjusted' => $totalAdjusted,
             'balance'       => $balance,
+            'summary'       => $summary,
         ];
     }
 }
