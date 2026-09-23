@@ -139,6 +139,21 @@ final class ActivityMover
                      SELECT association_id, ?, member_id, contribution FROM event_members WHERE event_id = ?',
                     [$newId, $id]
                 );
+            } elseif ($from === 'project' && in_array($to, ['gift', 'event'], true)) {
+                // A project's member money lives in receipts. Turn each member's
+                // total collection into a contribution on the new gift/event so
+                // it shows under "Related members & contributions". Receipts were
+                // just re-pointed, so they now carry the destination link.
+                $targetTable = $to === 'gift' ? 'gift_members' : 'event_members';
+                $targetCol = self::LINK[$to];
+                $this->db->run(
+                    "INSERT INTO {$targetTable} (association_id, {$targetCol}, member_id, contribution)
+                     SELECT ?, ?, member_id, SUM(amount)
+                     FROM receipts
+                     WHERE association_id = ? AND {$targetCol} = ? AND member_id IS NOT NULL
+                     GROUP BY member_id",
+                    [$assocId, $newId, $assocId, $newId]
+                );
             }
 
             // Delete the source record's satellites.
