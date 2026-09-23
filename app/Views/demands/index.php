@@ -44,15 +44,19 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
 
     <div class="overflow-x-auto">
         <table class="table">
-            <thead><tr><th>Member No.</th><th>Member</th><th>Mobile</th><th>Purpose</th><th>Project</th><th>Due</th><th class="text-right">Amount</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
+            <thead><tr><th>Member No.</th><th>Member</th><th>Mobile</th><th>Due for</th><th>Due</th><th class="text-right">Amount</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
             <tbody>
             <?php foreach ($demands as $d): ?>
+                <?php
+                $forName = $d['project_name'] ?? $d['gift_name'] ?? $d['event_name'] ?? $d['purpose_name'] ?? '—';
+                $forKind = !empty($d['project_name']) ? 'Project'
+                    : (!empty($d['gift_name']) ? 'Gift' : (!empty($d['event_name']) ? 'Event' : null));
+                ?>
                 <tr>
                     <td class="text-gray-700"><?= e($d['member_number'] ?? '—') ?></td>
                     <td class="font-medium text-gray-900"><?= e($d['member_name']) ?></td>
                     <td><?= e($d['mobile'] ?? '—') ?></td>
-                    <td><?= e($d['purpose_name'] ?? '—') ?></td>
-                    <td><?= e($d['project_name'] ?? '—') ?></td>
+                    <td><?= e($forName) ?><?php if ($forKind): ?> <span class="text-xs text-gray-400">(<?= $forKind ?>)</span><?php endif; ?></td>
                     <td><?= e(format_date($d['due_date'])) ?></td>
                     <td class="text-right font-medium">₹ <?= money($d['amount']) ?></td>
                     <td>
@@ -91,7 +95,7 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
                 </tr>
             <?php endforeach; ?>
             <?php if ($demands === []): ?>
-                <tr><td colspan="9" class="text-center text-gray-400 py-8">No dues match your filters.</td></tr>
+                <tr><td colspan="8" class="text-center text-gray-400 py-8">No dues match your filters.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>

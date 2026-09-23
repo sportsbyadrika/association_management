@@ -1,11 +1,14 @@
 <?php $this->layout('layouts.app');
-/** @var list $members */ /** @var list $memberTypes */ /** @var list $purposes */ /** @var list $projects */ /** @var list $preselected */ /** @var array $existingDemands */ /** @var int $presetProject */
-$presetProject = $presetProject ?? 0;
-$presetPurpose = $presetPurpose ?? 0;
-$defaultPurpose = $presetPurpose > 0 ? $presetPurpose : ($purposes[0]['id'] ?? '');
-$curPurpose = old('demand_purpose_id', (string) $defaultPurpose);
-$curProject = old('project_id', (string) $presetProject);
+/** @var list $members */ /** @var list $memberTypes */ /** @var list $projects */ /** @var list $gifts */ /** @var list $events */
+/** @var list $preselected */ /** @var array $existingDemands */
+/** @var string $presetCategory */ /** @var int $presetProject */ /** @var int $presetGift */ /** @var int $presetEvent */
+$presetCategory = $presetCategory ?? 'subscription';
+$curCat = old('category', $presetCategory);
+$curProject = old('project_id', (string) ($presetProject ?? 0));
+$curGift = old('gift_id', (string) ($presetGift ?? 0));
+$curEvent = old('event_id', (string) ($presetEvent ?? 0));
 $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
+$catWrap = static fn (string $c) => 'display:' . ($curCat === $c ? 'block' : 'none');
 ?>
 
 <div class="mb-6">
@@ -25,32 +28,49 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
             <div class="lg:col-span-2 space-y-5">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Due details</h2>
                 <div>
-                    <label for="demand_purpose_id" class="form-label">Purpose *</label>
-                    <select id="demand_purpose_id" name="demand_purpose_id" required class="form-select">
-                        <?php if ($purposes === []): ?>
-                            <option value="">— No purposes defined —</option>
-                        <?php endif; ?>
-                        <?php foreach ($purposes as $pp): ?>
-                            <option value="<?= (int) $pp['id'] ?>" <?= (string) $curPurpose === (string) $pp['id'] ? 'selected' : '' ?>>
-                                <?= e($pp['name']) ?> (<?= e($pp['type']) ?>)
-                            </option>
-                        <?php endforeach; ?>
+                    <label for="category" class="form-label">Due for *</label>
+                    <select id="category" name="category" required class="form-select" data-category-select>
+                        <option value="subscription" <?= $curCat === 'subscription' ? 'selected' : '' ?>>Subscription</option>
+                        <option value="project" <?= $curCat === 'project' ? 'selected' : '' ?>>Project</option>
+                        <option value="gift" <?= $curCat === 'gift' ? 'selected' : '' ?>>Gift</option>
+                        <option value="event" <?= $curCat === 'event' ? 'selected' : '' ?>>Event</option>
                     </select>
-                    <?php if ($m = error_for('demand_purpose_id')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
-                    <?php if ($purposes === []): ?>
-                        <p class="mt-1 text-xs text-amber-600">Add purposes under Masters → Due Purpose first.</p>
-                    <?php endif; ?>
+                    <?php if ($m = error_for('category')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
                 </div>
-                <div>
-                    <label for="project_id" class="form-label">Link to project (optional)</label>
+
+                <div data-cat-wrap="project" style="<?= $catWrap('project') ?>">
+                    <label for="project_id" class="form-label">Link to project *</label>
                     <select id="project_id" name="project_id" class="form-select">
-                        <option value="">— None —</option>
+                        <option value="">— Select project —</option>
                         <?php foreach ($projects as $p): ?>
                             <option value="<?= (int) $p['id'] ?>" <?= (string) $curProject === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                     <?php if ($m = error_for('project_id')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
                 </div>
+
+                <div data-cat-wrap="gift" style="<?= $catWrap('gift') ?>">
+                    <label for="gift_id" class="form-label">Link to gift *</label>
+                    <select id="gift_id" name="gift_id" class="form-select">
+                        <option value="">— Select gift —</option>
+                        <?php foreach ($gifts as $g): ?>
+                            <option value="<?= (int) $g['id'] ?>" <?= (string) $curGift === (string) $g['id'] ? 'selected' : '' ?>><?= e($g['title']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if ($m = error_for('gift_id')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
+                </div>
+
+                <div data-cat-wrap="event" style="<?= $catWrap('event') ?>">
+                    <label for="event_id" class="form-label">Link to event *</label>
+                    <select id="event_id" name="event_id" class="form-select">
+                        <option value="">— Select event —</option>
+                        <?php foreach ($events as $ev): ?>
+                            <option value="<?= (int) $ev['id'] ?>" <?= (string) $curEvent === (string) $ev['id'] ? 'selected' : '' ?>><?= e($ev['title']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if ($m = error_for('event_id')): ?><p class="form-error"><?= e($m) ?></p><?php endif; ?>
+                </div>
+
                 <div>
                     <label for="member_type_filter" class="form-label">Member type (optional)</label>
                     <select id="member_type_filter" name="member_type_filter" class="form-select">
@@ -84,7 +104,7 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
                     <span class="text-sm text-gray-500"><span data-selected-count>0</span> selected</span>
                 </div>
 
-                <div data-exclude-wrap class="mb-3 rounded-lg bg-amber-50 px-3 py-2" style="display:<?= (string) $curProject !== '' && (string) $curProject !== '0' ? 'block' : 'none' ?>">
+                <div data-exclude-wrap data-cat-wrap="project" class="mb-3 rounded-lg bg-amber-50 px-3 py-2" style="<?= $catWrap('project') ?>">
                     <label class="flex items-center gap-2 text-sm text-amber-800">
                         <input type="checkbox" data-exclude-existing class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
                         Exclude members who already have a due for the selected project
@@ -131,3 +151,4 @@ $existingJson = json_encode($existingDemands ?? [], JSON_UNESCAPED_SLASHES);
         </div>
     </form>
 </div>
+

@@ -11,6 +11,7 @@ $statusBadge = [
     <a href="<?= e(url('/events')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to events</a>
     <div class="flex flex-wrap gap-2">
         <a href="<?= e(url('/receipts/create?category=event&event_id=' . $event['id'])) ?>" class="btn-secondary btn-sm">Add collection</a>
+        <a href="<?= e(url('/demands/create?event_id=' . $event['id'])) ?>" class="btn-secondary btn-sm">Raise due</a>
         <a href="<?= e(url('/expenditures/create?category=event&event_id=' . $event['id'])) ?>" class="btn-secondary btn-sm">Add expenditure</a>
         <a href="<?= e(url('/activities/event/' . $event['id'] . '/move')) ?>" class="btn-secondary btn-sm">Move…</a>
         <a href="<?= e(url('/events/' . $event['id'] . '/edit')) ?>" class="btn-primary btn-sm">Edit</a>

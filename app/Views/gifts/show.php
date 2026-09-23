@@ -6,6 +6,7 @@ $giftMembers = $giftMembers ?? [];
 <div class="mb-6 flex items-center justify-between">
     <a href="<?= e(url('/gifts')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to gifts</a>
     <div class="flex flex-wrap gap-2">
+        <a href="<?= e(url('/demands/create?gift_id=' . $gift['id'])) ?>" class="btn-secondary">Raise due</a>
         <a href="<?= e(url('/activities/gift/' . $gift['id'] . '/move')) ?>" class="btn-secondary">Move…</a>
         <a href="<?= e(url('/gifts/' . $gift['id'] . '/edit')) ?>" class="btn-primary">Edit gift</a>
     </div>

@@ -12,7 +12,9 @@ use App\Core\Session;
 use App\Core\Validator;
 use App\Models\Demand;
 use App\Models\DemandPurpose;
+use App\Models\Event;
 use App\Models\FinancialYear;
+use App\Models\Gift;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Receipt;
@@ -78,35 +80,36 @@ final class DemandController extends Controller
             $preselected[] = $pre;
         }
 
-        // Opening from a project preselects that project (purpose is separate).
+        // A due is raised for a Subscription or an Activity (project/gift/event).
+        // Opening from an activity page preselects it.
         $presetProject = (int) $request->input('project_id', 0);
         if ($presetProject > 0 && (new Project())->findForAssociation($presetProject, $assocId) === null) {
             $presetProject = 0;
         }
-
-        $purposes = (new DemandPurpose())->options($assocId);
-
-        // From a project, default the purpose to "Project Contribution" if defined.
-        $presetPurpose = 0;
-        if ($presetProject > 0) {
-            foreach ($purposes as $pp) {
-                if (mb_strtolower(trim((string) $pp['name'])) === 'project contribution') {
-                    $presetPurpose = (int) $pp['id'];
-                    break;
-                }
-            }
+        $presetGift = (int) $request->input('gift_id', 0);
+        if ($presetGift > 0 && (new Gift())->findForAssociation($presetGift, $assocId) === null) {
+            $presetGift = 0;
         }
+        $presetEvent = (int) $request->input('event_id', 0);
+        if ($presetEvent > 0 && (new Event())->findForAssociation($presetEvent, $assocId) === null) {
+            $presetEvent = 0;
+        }
+        $presetCategory = $presetProject > 0 ? 'project'
+            : ($presetGift > 0 ? 'gift' : ($presetEvent > 0 ? 'event' : 'subscription'));
 
         $this->view('demands.form', [
             'title'           => 'Raise Due',
             'members'         => (new Member())->selectableForAssociation($assocId),
             'memberTypes'     => (new \App\Models\Master('member-types'))->activeForAssociation($assocId),
-            'purposes'        => $purposes,
             'projects'        => (new Project())->options($assocId),
+            'gifts'           => (new Gift())->options($assocId),
+            'events'          => (new Event())->options($assocId),
             'preselected'     => $preselected,
             'existingDemands' => (new Demand())->projectMemberMap($assocId),
+            'presetCategory'  => $presetCategory,
             'presetProject'   => $presetProject,
-            'presetPurpose'   => $presetPurpose,
+            'presetGift'      => $presetGift,
+            'presetEvent'     => $presetEvent,
         ]);
         Session::clearFormState();
     }
@@ -133,21 +136,23 @@ final class DemandController extends Controller
     {
         $assocId = Auth::associationId();
 
-        $purpose = (new DemandPurpose())->findForAssociation((int) $details['demand_purpose_id'], $assocId);
-        $purposeName = $purpose['name'] ?? 'Due';
-
-        $projectName = null;
-        if ($details['project_id'] !== null) {
-            $project = (new Project())->findForAssociation((int) $details['project_id'], $assocId);
-            $projectName = $project['name'] ?? null;
+        // A human label for what the due is for.
+        $forCategory = ['subscription' => 'Subscription', 'project' => 'Project', 'gift' => 'Gift', 'event' => 'Event'][$details['category']] ?? 'Due';
+        $forName = null;
+        if ($details['category'] === 'project' && $details['project_id']) {
+            $forName = (new Project())->findForAssociation((int) $details['project_id'], $assocId)['name'] ?? null;
+        } elseif ($details['category'] === 'gift' && $details['gift_id']) {
+            $forName = (new Gift())->findForAssociation((int) $details['gift_id'], $assocId)['title'] ?? null;
+        } elseif ($details['category'] === 'event' && $details['event_id']) {
+            $forName = (new Event())->findForAssociation((int) $details['event_id'], $assocId)['title'] ?? null;
         }
 
         $this->view('demands.confirm', [
             'title'         => 'Confirm Dues',
             'details'       => $details,
             'members'       => $members,
-            'purposeName'   => $purposeName,
-            'projectName'   => $projectName,
+            'forCategory'   => $forCategory,
+            'forName'       => $forName,
             'memberAmounts' => $memberAmounts,
             'invalidIds'    => $invalidIds,
             'error'         => $error,
@@ -197,6 +202,8 @@ final class DemandController extends Controller
                     'member_id'         => $id,
                     'demand_purpose_id' => $details['demand_purpose_id'],
                     'project_id'        => $details['project_id'],
+                    'gift_id'           => $details['gift_id'],
+                    'event_id'          => $details['event_id'],
                     'amount'            => $amounts[$id],
                     'due_date'          => $details['due_date'] ?: null,
                     'status'            => 'pending',
@@ -276,36 +283,65 @@ final class DemandController extends Controller
 
     // ---- Shared validation ---------------------------------------------
 
-    /** @return array{demand_purpose_id:?string,project_id:?string,amount:string,due_date:string,remarks:string} */
+    /** @return array{category:string,demand_purpose_id:?int,project_id:?int,gift_id:?int,event_id:?int,amount:string,due_date:string,remarks:string} */
     private function validateDetails(Request $request): array
     {
         $assocId = Auth::associationId();
         $input = [
-            'demand_purpose_id' => $request->input('demand_purpose_id') ?: null,
-            'project_id'        => $request->input('project_id') ?: null,
-            'amount'            => (string) $request->input('amount', ''),
-            'due_date'          => (string) $request->input('due_date', ''),
-            'remarks'           => (string) $request->input('remarks', ''),
+            'category'   => (string) $request->input('category', 'subscription'),
+            'project_id' => $request->input('project_id') ?: null,
+            'gift_id'    => $request->input('gift_id') ?: null,
+            'event_id'   => $request->input('event_id') ?: null,
+            'amount'     => (string) $request->input('amount', ''),
+            'due_date'   => (string) $request->input('due_date', ''),
+            'remarks'    => (string) $request->input('remarks', ''),
         ];
         $validator = Validator::make($input, [
-            'demand_purpose_id' => 'required|integer',
-            'amount'            => 'required|decimal|min_val:0.01',
-            'due_date'          => 'date',
-            'remarks'           => 'max:500',
-        ], ['demand_purpose_id' => 'Purpose']);
+            'category' => 'required|in:subscription,project,gift,event',
+            'amount'   => 'required|decimal|min_val:0.01',
+            'due_date' => 'date',
+            'remarks'  => 'max:500',
+        ], ['category' => 'Due for']);
         if ($validator->fails()) {
             $this->withErrors($validator->errors(), $input);
         }
 
-        // Purpose must belong to this association.
-        if ((new DemandPurpose())->findForAssociation((int) $input['demand_purpose_id'], $assocId) === null) {
-            $this->withErrors(['demand_purpose_id' => 'Please select a valid purpose.'], $input);
+        // Resolve the linked activity for the chosen category, tenant-checked.
+        $category = $input['category'];
+        $projectId = $giftId = $eventId = null;
+        $purposeModel = new DemandPurpose();
+        $purposeId = null;
+
+        if ($category === 'subscription') {
+            $purposeId = $purposeModel->subscriptionId($assocId);
+        } elseif ($category === 'project') {
+            $projectId = (int) ($input['project_id'] ?? 0);
+            if ($projectId <= 0 || (new Project())->findForAssociation($projectId, $assocId) === null) {
+                $this->withErrors(['project_id' => 'Please select a valid project.'], $input);
+            }
+            $purposeId = $purposeModel->idByName($assocId, 'Project Contribution');
+        } elseif ($category === 'gift') {
+            $giftId = (int) ($input['gift_id'] ?? 0);
+            if ($giftId <= 0 || (new Gift())->findForAssociation($giftId, $assocId) === null) {
+                $this->withErrors(['gift_id' => 'Please select a valid gift.'], $input);
+            }
+        } elseif ($category === 'event') {
+            $eventId = (int) ($input['event_id'] ?? 0);
+            if ($eventId <= 0 || (new Event())->findForAssociation($eventId, $assocId) === null) {
+                $this->withErrors(['event_id' => 'Please select a valid event.'], $input);
+            }
         }
-        // Project link is optional and independent of purpose.
-        if ($input['project_id'] !== null && (new Project())->findForAssociation((int) $input['project_id'], $assocId) === null) {
-            $this->withErrors(['project_id' => 'Please select a valid project.'], $input);
-        }
-        return $input;
+
+        return [
+            'category'          => $category,
+            'demand_purpose_id' => $purposeId,
+            'project_id'        => $projectId,
+            'gift_id'           => $giftId,
+            'event_id'          => $eventId,
+            'amount'            => $input['amount'],
+            'due_date'          => $input['due_date'],
+            'remarks'           => $input['remarks'],
+        ];
     }
 
     /**

@@ -30,9 +30,32 @@ final class DemandPurpose extends Model
         );
     }
 
-    public function toggleActive(int $id, int $associationId): void
+    /** Active purpose id matching a name (case-insensitive), or null. */
+    public function idByName(int $associationId, string $name): ?int
     {
-        $this->db->run(
+        $id = $this->db->fetchColumn(
+            'SELECT id FROM demand_purposes WHERE association_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1 ORDER BY id ASC LIMIT 1',
+            [$associationId, $name]
+        );
+        return $id ? (int) $id : null;
+    }
+
+    /** The mandatory Subscription purpose id (by name, then by type), or null. */
+    public function subscriptionId(int $associationId): ?int
+    {
+        $id = $this->idByName($associationId, 'Subscription');
+        if ($id !== null) {
+            return $id;
+        }
+        $id = $this->db->fetchColumn(
+            "SELECT id FROM demand_purposes WHERE association_id = ? AND type = 'mandatory' AND is_active = 1 ORDER BY id ASC LIMIT 1",
+            [$associationId]
+        );
+        return $id ? (int) $id : null;
+    }
+
+    public function toggleActive(int $id, int $associationId): void
+    {        $this->db->run(
             'UPDATE demand_purposes SET is_active = 1 - is_active WHERE id = ? AND association_id = ?',
             [$id, $associationId]
         );

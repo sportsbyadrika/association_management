@@ -156,12 +156,8 @@ final class MemberController extends Controller
         if ($member === null) {
             Response::notFound();
         }
-        $ledger = (new MemberLedger())->build((int) $member['id']);
-        $this->view('members.ledger', [
-            'title'  => 'Ledger — ' . $member['name'],
-            'member' => $member,
-            'ledger' => $ledger,
-        ]);
+        // The full ledger now lives on the member details page.
+        $this->redirect('/members/' . $member['id']);
     }
 
     // ---- Bulk upload ----------------------------------------------------

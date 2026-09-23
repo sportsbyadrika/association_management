@@ -11,8 +11,8 @@ final class Demand extends Model
     protected string $table = 'demands';
 
     protected array $fillable = [
-        'association_id', 'member_id', 'demand_purpose_id', 'project_id', 'amount',
-        'due_date', 'status', 'remarks', 'created_by',
+        'association_id', 'member_id', 'demand_purpose_id', 'project_id', 'gift_id',
+        'event_id', 'amount', 'due_date', 'status', 'remarks', 'created_by',
     ];
 
     /**
@@ -35,11 +35,14 @@ final class Demand extends Model
         }
 
         $base = "SELECT d.*, m.name AS member_name, m.member_number, m.mobile, p.name AS project_name,
+                        g.title AS gift_name, ev.title AS event_name,
                         dp.name AS purpose_name, dp.type AS purpose_type,
                         (SELECT COALESCE(SUM(amount),0) FROM receipts WHERE demand_id = d.id) AS receipts_paid
                  FROM demands d
                  JOIN members m ON m.id = d.member_id
                  LEFT JOIN projects p ON p.id = d.project_id
+                 LEFT JOIN gifts g ON g.id = d.gift_id
+                 LEFT JOIN events ev ON ev.id = d.event_id
                  LEFT JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
                  {$where}
                  ORDER BY d.created_at DESC";
@@ -72,9 +75,13 @@ final class Demand extends Model
     public function forMember(int $memberId): array
     {
         return $this->db->fetchAll(
-            'SELECT d.*, dp.name AS purpose_name, dp.type AS purpose_type
+            'SELECT d.*, dp.name AS purpose_name, dp.type AS purpose_type,
+                    p.name AS project_name, g.title AS gift_name, ev.title AS event_name
              FROM demands d
              LEFT JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
+             LEFT JOIN projects p ON p.id = d.project_id
+             LEFT JOIN gifts g ON g.id = d.gift_id
+             LEFT JOIN events ev ON ev.id = d.event_id
              WHERE d.member_id = ? ORDER BY COALESCE(d.due_date, d.created_at) ASC, d.id ASC',
             [$memberId]
         );
