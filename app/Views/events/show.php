@@ -1,5 +1,8 @@
 <?php $this->layout('layouts.app'); /** @var array $event */ /** @var float $spent */ /** @var float $collected */ /** @var list $eventMembers */
+/** @var list $collections */ /** @var list $expenditures */
 $eventMembers = $eventMembers ?? [];
+$collections = $collections ?? [];
+$expenditures = $expenditures ?? [];
 $statusBadge = [
     'planned'   => 'bg-sky-100 text-sky-800',
     'completed' => 'bg-brand-100 text-brand-800',
@@ -76,3 +79,65 @@ $statusBadge = [
     </div>
 </div>
 <?php endif; ?>
+
+<!-- Collections (receipts booked to this event) -->
+<div class="mt-6 max-w-3xl card">
+    <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+        <div class="flex items-center gap-3">
+            <h2 class="font-semibold text-gray-900">Collections</h2>
+            <a href="<?= e(url('/receipts/create?category=event&event_id=' . $event['id'])) ?>" class="text-sm text-brand-700 hover:underline">+ Add</a>
+        </div>
+        <span class="text-sm font-semibold text-brand-700">₹ <?= money($collected) ?></span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="table">
+            <thead><tr><th>Date</th><th>Income Head</th><th>Received From</th><th>Mode</th><th>Remarks</th><th class="text-right">Amount</th></tr></thead>
+            <tbody>
+            <?php foreach ($collections as $r): ?>
+                <tr>
+                    <td><?= $r['received_on'] ? e(format_date($r['received_on'])) : '—' ?></td>
+                    <td><?= e($r['income_head_name'] ?: '—') ?></td>
+                    <td><?= e($r['member_name'] ?: '—') ?></td>
+                    <td class="capitalize"><?= e(str_replace('_', ' ', $r['mode'])) ?></td>
+                    <td class="max-w-xs truncate text-gray-600" title="<?= e($r['remarks'] ?? '') ?>"><?= e($r['remarks'] ?: '—') ?></td>
+                    <td class="text-right font-medium text-brand-700">₹ <?= money($r['amount']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if ($collections === []): ?>
+                <tr><td colspan="6" class="text-center text-gray-400 py-6">No collections recorded yet.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Expenditure booked to this event -->
+<div class="mt-6 max-w-3xl card">
+    <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+        <div class="flex items-center gap-3">
+            <h2 class="font-semibold text-gray-900">Expenditure</h2>
+            <a href="<?= e(url('/expenditures/create?category=event&event_id=' . $event['id'])) ?>" class="text-sm text-brand-700 hover:underline">+ Add</a>
+        </div>
+        <span class="text-sm font-semibold text-red-600">₹ <?= money($spent) ?></span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="table">
+            <thead><tr><th>Date</th><th>Head</th><th>Category</th><th>Mode</th><th>Remarks</th><th class="text-right">Amount</th></tr></thead>
+            <tbody>
+            <?php foreach ($expenditures as $r): ?>
+                <tr>
+                    <td><?= $r['paid_on'] ? e(format_date($r['paid_on'])) : '—' ?></td>
+                    <td><?= e($r['head_name'] ?: '—') ?></td>
+                    <td class="capitalize"><?= e($r['category']) ?></td>
+                    <td class="capitalize"><?= e(str_replace('_', ' ', $r['mode'])) ?></td>
+                    <td class="max-w-xs truncate text-gray-600" title="<?= e($r['remarks'] ?? '') ?>"><?= e($r['remarks'] ?: '—') ?></td>
+                    <td class="text-right font-medium text-red-600">₹ <?= money($r['amount']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if ($expenditures === []): ?>
+                <tr><td colspan="6" class="text-center text-gray-400 py-6">No expenditure recorded yet.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
