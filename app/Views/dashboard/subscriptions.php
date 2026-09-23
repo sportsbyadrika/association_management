@@ -16,10 +16,16 @@ $statusBadge = static fn (string $s): string => [
 ][$s] ?? 'bg-gray-100 text-gray-600';
 ?>
 
-<div class="mb-6">
-    <a href="<?= e(url('/dashboard')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Dashboard</a>
-    <h1 class="mt-1 text-2xl font-bold text-gray-900">Subscriptions</h1>
-    <p class="mt-1 text-sm text-gray-500">Member-wise subscription dues<?= $selectedFy ? ' · ' . e($selectedFy['label']) : '' ?>. Choose a view below.</p>
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+        <a href="<?= e(url('/dashboard')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Dashboard</a>
+        <h1 class="mt-1 text-2xl font-bold text-gray-900">Subscriptions</h1>
+        <p class="mt-1 text-sm text-gray-500">Member-wise subscription dues<?= $selectedFy ? ' · ' . e($selectedFy['label']) : '' ?>. Choose a view below.</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="<?= e(url('/dashboard/subscriptions?view=' . $view . $fyQ . '&format=csv')) ?>" class="btn-secondary btn-sm">CSV</a>
+        <a href="<?= e(url('/dashboard/subscriptions?view=' . $view . $fyQ . '&format=pdf')) ?>" class="btn-primary btn-sm">PDF</a>
+    </div>
 </div>
 
 <!-- Summary cards double as the view switcher -->

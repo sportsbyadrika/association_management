@@ -7,12 +7,16 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Request;
+use App\Models\Association;
 use App\Models\Demand;
 use App\Models\Expenditure;
 use App\Models\FinancialYear;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Receipt;
+use App\Services\CsvExporter;
+use App\Services\ImageUploader;
+use App\Services\PdfReport;
 
 final class DashboardController extends Controller
 {
@@ -115,15 +119,72 @@ final class DashboardController extends Controller
         $from = $selectedFy['start_date'] ?? null;
         $to = $selectedFy['end_date'] ?? null;
 
+        $summary = (new Demand())->subscriptionSummary($assocId, $from, $to);
+        $rows = (new Demand())->subscriptionList($assocId, $view, $from, $to);
+
+        $labels = ['total' => 'Total Subscriptions', 'received' => 'Amount Received', 'outstanding' => 'Amount Outstanding'];
+
+        // Standard PDF / CSV export of the current view.
+        $format = (string) $request->input('format', '');
+        if ($format === 'pdf' || $format === 'csv') {
+            $columns = ['Sl No.', 'Member No.', 'Member', 'Due date', 'Amount', 'Received', 'Balance', 'Status'];
+            $data = [];
+            $sl = 0;
+            foreach ($rows as $r) {
+                $paid = (float) $r['paid'];
+                $bal = (float) $r['balance'];
+                $status = $bal <= 0.005 ? 'Paid' : ($paid > 0 ? 'Partial' : 'Pending');
+                $data[] = [
+                    ++$sl,
+                    $r['member_number'] ?: '-',
+                    $r['member_name'],
+                    format_date($r['due_date']),
+                    number_format((float) $r['amount'], 2),
+                    number_format($paid, 2),
+                    number_format($bal, 2),
+                    $status,
+                ];
+            }
+            $meta = array_filter([
+                'Financial year' => $selectedFy['label'] ?? 'All years',
+                'View'           => $labels[$view],
+            ]);
+            $summaryLines = [
+                'Total subscriptions' => number_format((float) ($summary['total_amount'] ?? 0), 2) . ' (' . (int) ($summary['total_count'] ?? 0) . ')',
+                'Amount received'     => number_format((float) ($summary['received_amount'] ?? 0), 2) . ' (' . (int) ($summary['received_count'] ?? 0) . ')',
+                'Amount outstanding'  => number_format((float) ($summary['outstanding_amount'] ?? 0), 2) . ' (' . (int) ($summary['outstanding_count'] ?? 0) . ')',
+            ];
+            $filename = 'subscriptions-' . $view;
+            if ($format === 'pdf') {
+                $this->pdf()->stream($filename, 'Subscriptions — ' . $labels[$view], $columns, $data, $meta, $summaryLines);
+            }
+            CsvExporter::download($filename, $columns, $data);
+        }
+
         $this->view('dashboard.subscriptions', [
             'title'          => 'Subscriptions',
             'view'           => $view,
-            'summary'        => (new Demand())->subscriptionSummary($assocId, $from, $to),
-            'rows'           => (new Demand())->subscriptionList($assocId, $view, $from, $to),
+            'summary'        => $summary,
+            'rows'           => $rows,
             'financialYears' => $financialYears,
             'selectedFy'     => $selectedFy,
             'fyParam'        => $fyParam,
         ]);
+    }
+
+    private function pdf(): PdfReport
+    {
+        $assocId = Auth::associationId();
+        $association = $assocId ? (new Association())->find($assocId) : null;
+        $name = $association['name'] ?? 'Habitract';
+        $logo = null;
+        if (!empty($association['logo_path'])) {
+            $candidate = (new ImageUploader())->baseDir() . '/' . $association['logo_path'];
+            if (is_file($candidate)) {
+                $logo = $candidate;
+            }
+        }
+        return new PdfReport($name, $logo);
     }
 
     /**
