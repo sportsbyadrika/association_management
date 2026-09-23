@@ -307,7 +307,7 @@ final class ReceiptController extends Controller
         $validator = Validator::make($input, [
             'category'    => 'required|in:general,project,gift,event',
             'amount'      => 'required|decimal|min_val:0.01',
-            'mode'        => 'required|in:cash,fund_transfer',
+            'mode'        => 'required|in:cash,fund_transfer,adjustment',
             'received_on' => 'required|date',
             'remarks'     => 'max:500',
         ]);
