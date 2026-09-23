@@ -20,6 +20,18 @@ $finance = [
     ],
 ];
 
+$activities = [
+    'type'     => 'dropdown',
+    'label'    => 'Activities',
+    'id'       => 'activitiesMenu',
+    'prefixes' => ['/projects', '/gifts', '/events'],
+    'items'    => [
+        ['Projects', '/projects'],
+        ['Gifts', '/gifts'],
+        ['Events', '/events'],
+    ],
+];
+
 $menu = [];
 if ($role === 'super_admin') {
     $menu = [
@@ -31,9 +43,7 @@ if ($role === 'super_admin') {
         ['type' => 'link', 'label' => 'Dashboard', 'href' => '/dashboard', 'prefix' => '/dashboard'],
         ['type' => 'link', 'label' => 'Members', 'href' => '/members', 'prefix' => '/members'],
         $finance,
-        ['type' => 'link', 'label' => 'Projects', 'href' => '/projects', 'prefix' => '/projects'],
-        ['type' => 'link', 'label' => 'Gifts', 'href' => '/gifts', 'prefix' => '/gifts'],
-        ['type' => 'link', 'label' => 'Events', 'href' => '/events', 'prefix' => '/events'],
+        $activities,
         ['type' => 'link', 'label' => 'Committees', 'href' => '/committees', 'prefix' => '/committees'],
         ['type' => 'link', 'label' => 'Masters', 'href' => '/masters/member-types', 'prefix' => '/masters', 'extra' => ['/bank-accounts']],
         ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
@@ -43,9 +53,7 @@ if ($role === 'super_admin') {
         ['type' => 'link', 'label' => 'Dashboard', 'href' => '/dashboard', 'prefix' => '/dashboard'],
         ['type' => 'link', 'label' => 'Members', 'href' => '/members', 'prefix' => '/members'],
         $finance,
-        ['type' => 'link', 'label' => 'Projects', 'href' => '/projects', 'prefix' => '/projects'],
-        ['type' => 'link', 'label' => 'Gifts', 'href' => '/gifts', 'prefix' => '/gifts'],
-        ['type' => 'link', 'label' => 'Events', 'href' => '/events', 'prefix' => '/events'],
+        $activities,
         ['type' => 'link', 'label' => 'Reports', 'href' => '/reports', 'prefix' => '/reports'],
     ];
 } elseif ($role === 'official') {
