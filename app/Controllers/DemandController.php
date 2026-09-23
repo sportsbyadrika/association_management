@@ -26,6 +26,10 @@ final class DemandController extends Controller
         $assocId = Auth::associationId();
         $page = (int) $request->input('page', 1);
         $search = trim((string) $request->input('q', ''));
+        $category = (string) $request->input('category', '');
+        if (!in_array($category, ['subscription', 'project', 'gift', 'event'], true)) {
+            $category = '';
+        }
 
         $fyModel = new FinancialYear();
         $financialYears = $fyModel->allForAssociationOrdered($assocId);
@@ -52,7 +56,8 @@ final class DemandController extends Controller
             $selectedFy['start_date'] ?? null,
             $selectedFy['end_date'] ?? null,
             $page,
-            20
+            20,
+            $category
         );
 
         $this->view('demands.index', [
@@ -60,6 +65,7 @@ final class DemandController extends Controller
             'demands'        => $result['data'],
             'paginator'      => $result,
             'search'         => $search,
+            'category'       => $category,
             'financialYears' => $financialYears,
             'selectedFy'     => $selectedFy,
             'fyParam'        => $fyParam,
@@ -278,6 +284,32 @@ final class DemandController extends Controller
         // Cancel rather than hard-delete to preserve history.
         (new Demand())->update((int) $demand['id'], ['status' => 'cancelled']);
         $this->flash('success', 'Due cancelled.');
+        $this->back('/demands');
+    }
+
+    /**
+     * Permanently delete a due. Any receipts recorded against it are kept but
+     * unlinked (their money is preserved as standalone collections).
+     */
+    public function hardDestroy(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $demandModel = new Demand();
+        $demand = $demandModel->findForAssociation((int) $params['id'], $assocId);
+        if ($demand === null) {
+            Response::notFound();
+        }
+        $demandModel->db()->transaction(function () use ($demandModel, $demand, $assocId): void {
+            $demandModel->db()->run(
+                'UPDATE receipts SET demand_id = NULL WHERE demand_id = ? AND association_id = ?',
+                [(int) $demand['id'], $assocId]
+            );
+            $demandModel->db()->run(
+                'DELETE FROM demands WHERE id = ? AND association_id = ?',
+                [(int) $demand['id'], $assocId]
+            );
+        });
+        $this->flash('success', 'Due permanently deleted.');
         $this->back('/demands');
     }
 

@@ -1,6 +1,9 @@
 <?php $this->layout('layouts.app');
 /** @var string $view */ /** @var array $summary */ /** @var list $rows */
+/** @var list $financialYears */ /** @var array|null $selectedFy */ /** @var mixed $fyParam */
 $canNavigate = \App\Core\Auth::is('association_admin', 'association_staff');
+$fyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (string) ($selectedFy['id'] ?? '');
+$fyQ = $fyValue !== '' ? '&fy=' . urlencode($fyValue) : '';
 $tabs = [
     'total'       => ['Total Subscriptions', (float) ($summary['total_amount'] ?? 0), (int) ($summary['total_count'] ?? 0)],
     'received'    => ['Amount Received', (float) ($summary['received_amount'] ?? 0), (int) ($summary['received_count'] ?? 0)],
@@ -16,14 +19,14 @@ $statusBadge = static fn (string $s): string => [
 <div class="mb-6">
     <a href="<?= e(url('/dashboard')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Dashboard</a>
     <h1 class="mt-1 text-2xl font-bold text-gray-900">Subscriptions</h1>
-    <p class="mt-1 text-sm text-gray-500">Member-wise subscription dues. Choose a view below.</p>
+    <p class="mt-1 text-sm text-gray-500">Member-wise subscription dues<?= $selectedFy ? ' · ' . e($selectedFy['label']) : '' ?>. Choose a view below.</p>
 </div>
 
 <!-- Summary cards double as the view switcher -->
 <div class="grid gap-4 sm:grid-cols-3">
     <?php foreach ($tabs as $key => [$label, $amount, $count]): ?>
         <?php $active = $view === $key; ?>
-        <a href="<?= e(url('/dashboard/subscriptions?view=' . $key)) ?>"
+        <a href="<?= e(url('/dashboard/subscriptions?view=' . $key . $fyQ)) ?>"
            class="card card-body block transition hover:shadow-md <?= $active ? 'ring-2 ring-brand-500' : '' ?>">
             <div class="flex items-center justify-between">
                 <p class="text-sm font-medium text-gray-500"><?= e($label) ?></p>

@@ -143,6 +143,7 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->post('/demands/{id}/mark-paid', [DemandController::class, 'markPaid']);
     $router->post('/demands/{id}/reopen', [DemandController::class, 'reopen']);
     $router->post('/demands/{id}/delete', [DemandController::class, 'destroy']);
+    $router->post('/demands/{id}/hard-delete', [DemandController::class, 'hardDestroy']);
 
     // Receipts
     $router->get('/receipts', [ReceiptController::class, 'index']);

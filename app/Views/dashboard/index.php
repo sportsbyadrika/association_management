@@ -1,13 +1,39 @@
 <?php $this->layout('layouts.app'); /** @var array $stats */ /** @var list $memberTypeCounts */
+/** @var list $financialYears */ /** @var array|null $selectedFy */ /** @var mixed $fyParam */
 $memberTypeCounts = $memberTypeCounts ?? [];
+$financialYears = $financialYears ?? [];
 // Officials get a read-only dashboard: cards are not links (no access beyond
 // Dashboard + Reports).
 $canNavigate = \App\Core\Auth::is('association_admin', 'association_staff');
 $cardTag = $canNavigate ? 'a' : 'div';
+$fyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (string) ($selectedFy['id'] ?? '');
+$fyQ = $fyValue !== '' ? '&fy=' . urlencode($fyValue) : '';
 ?>
 
-<h1 class="mb-1 text-2xl font-bold text-gray-900">Dashboard</h1>
-<p class="mb-6 text-sm text-gray-500">Overview of your association's activity.</p>
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p class="mt-1 text-sm text-gray-500">Overview of your association's activity.</p>
+    </div>
+    <?php if ($financialYears !== []): ?>
+        <form method="get" action="<?= e(url('/dashboard')) ?>" class="flex items-end gap-2">
+            <div>
+                <label for="fy" class="form-label">Financial year</label>
+                <select id="fy" name="fy" class="form-select" onchange="this.form.submit()">
+                    <?php foreach ($financialYears as $fy): ?>
+                        <option value="<?= (int) $fy['id'] ?>" <?= $fyValue === (string) $fy['id'] ? 'selected' : '' ?>><?= e($fy['label']) ?></option>
+                    <?php endforeach; ?>
+                    <option value="all" <?= (string) $fyParam === 'all' ? 'selected' : '' ?>>All years</option>
+                </select>
+            </div>
+            <noscript><button type="submit" class="btn-secondary btn-sm">Apply</button></noscript>
+        </form>
+    <?php endif; ?>
+</div>
+
+<?php if ($selectedFy !== null): ?>
+    <p class="mb-4 text-xs text-gray-400">Amounts below are for <span class="font-medium text-gray-600"><?= e($selectedFy['label']) ?></span>. Members and project counts show current totals.</p>
+<?php endif; ?>
 
 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <!-- Members card with per-type breakdown -->
@@ -47,7 +73,7 @@ $cardTag = $canNavigate ? 'a' : 'div';
         ['Amount Outstanding', (float) ($subscription['outstanding_amount'] ?? 0), (int) ($subscription['outstanding_count'] ?? 0), 'text-amber-600', 'outstanding'],
     ];
     foreach ($subCards as [$label, $amount, $count, $color, $view]): ?>
-        <a href="<?= e(url('/dashboard/subscriptions?view=' . $view)) ?>" class="card card-body block transition hover:shadow-md">
+        <a href="<?= e(url('/dashboard/subscriptions?view=' . $view . $fyQ)) ?>" class="card card-body block transition hover:shadow-md">
             <div class="flex items-center justify-between">
                 <p class="text-sm font-medium text-gray-500"><?= e($label) ?></p>
                 <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600"><?= number_format($count) ?></span>
