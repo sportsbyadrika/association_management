@@ -314,6 +314,146 @@ final class ReportController extends Controller
     }
 
     /**
+     * JSON: the individual receipts / expenditures behind one line of the
+     * Income & Expenditure report, for the drill-down popup.
+     *
+     * Params: side=income|expense, head=<id|none> (optional),
+     * activity=<project:ID|gift:ID|event:ID|general> (optional), from, to.
+     */
+    public function incomeExpenditureItems(Request $request): void
+    {
+        $assocId = Auth::associationId();
+        $this->authorizeAssociation($assocId);
+        [$from, $to] = $this->dateRange($request);
+        $db = (new Receipt())->db();
+        $side = (string) $request->input('side', 'income');
+        $head = $request->input('head');
+        $activity = (string) $request->input('activity', '');
+
+        // Translate an activity key into a WHERE fragment on the given table alias.
+        $activityWhere = static function (string $key, string $alias): array {
+            if ($key === '') {
+                return ['', []];
+            }
+            if ($key === 'general') {
+                return [" AND {$alias}.project_id IS NULL AND {$alias}.gift_id IS NULL AND {$alias}.event_id IS NULL", []];
+            }
+            [$type, $id] = array_pad(explode(':', $key, 2), 2, '');
+            $col = ['project' => 'project_id', 'gift' => 'gift_id', 'event' => 'event_id'][$type] ?? null;
+            if ($col === null || (int) $id <= 0) {
+                return ['', []];
+            }
+            return [" AND {$alias}.{$col} = ?", [(int) $id]];
+        };
+
+        $items = [];
+        $total = 0.0;
+
+        if ($side === 'expense') {
+            $where = 'e.association_id = ?';
+            $params = [$assocId];
+            if ($head !== null && $head !== '') {
+                if ($head === 'none') {
+                    $where .= ' AND e.expenditure_head_id IS NULL';
+                } else {
+                    $where .= ' AND e.expenditure_head_id = ?';
+                    $params[] = (int) $head;
+                }
+            }
+            [$aw, $ap] = $activityWhere($activity, 'e');
+            $where .= $aw;
+            $params = array_merge($params, $ap);
+            if ($from !== null) {
+                $where .= ' AND e.paid_on >= ?';
+                $params[] = $from;
+            }
+            if ($to !== null) {
+                $where .= ' AND e.paid_on <= ?';
+                $params[] = $to;
+            }
+            $rows = $db->fetchAll(
+                "SELECT e.paid_on AS date, e.amount, e.remarks, e.mode,
+                        COALESCE(eh.name, 'Unspecified') AS head,
+                        COALESCE(p.name, g.title, ev.title, 'Association (General)') AS activity
+                 FROM expenditures e
+                 LEFT JOIN expenditure_heads eh ON eh.id = e.expenditure_head_id
+                 LEFT JOIN projects p ON p.id = e.project_id
+                 LEFT JOIN gifts g ON g.id = e.gift_id
+                 LEFT JOIN events ev ON ev.id = e.event_id
+                 WHERE {$where} ORDER BY e.paid_on DESC, e.id DESC",
+                $params
+            );
+            foreach ($rows as $r) {
+                $total += (float) $r['amount'];
+                $items[] = [
+                    'date'     => $r['date'] ? format_date($r['date']) : '—',
+                    'head'     => (string) $r['head'],
+                    'activity' => (string) $r['activity'],
+                    'party'    => '—',
+                    'mode'     => ucfirst(str_replace('_', ' ', (string) $r['mode'])),
+                    'remarks'  => (string) ($r['remarks'] ?? ''),
+                    'amount'   => number_format((float) $r['amount'], 2),
+                ];
+            }
+        } else {
+            $where = 'r.association_id = ?';
+            $params = [$assocId];
+            if ($head !== null && $head !== '') {
+                if ($head === 'none') {
+                    $where .= ' AND r.income_head_id IS NULL';
+                } else {
+                    $where .= ' AND r.income_head_id = ?';
+                    $params[] = (int) $head;
+                }
+            }
+            [$aw, $ap] = $activityWhere($activity, 'r');
+            $where .= $aw;
+            $params = array_merge($params, $ap);
+            if ($from !== null) {
+                $where .= ' AND r.received_on >= ?';
+                $params[] = $from;
+            }
+            if ($to !== null) {
+                $where .= ' AND r.received_on <= ?';
+                $params[] = $to;
+            }
+            $rows = $db->fetchAll(
+                "SELECT r.received_on AS date, r.amount, r.remarks, r.mode,
+                        COALESCE(ih.name, 'Other Income') AS head,
+                        COALESCE(m.name, '—') AS party,
+                        COALESCE(p.name, g.title, ev.title, 'General') AS activity
+                 FROM receipts r
+                 LEFT JOIN income_heads ih ON ih.id = r.income_head_id
+                 LEFT JOIN members m ON m.id = r.member_id
+                 LEFT JOIN projects p ON p.id = r.project_id
+                 LEFT JOIN gifts g ON g.id = r.gift_id
+                 LEFT JOIN events ev ON ev.id = r.event_id
+                 WHERE {$where} ORDER BY r.received_on DESC, r.id DESC",
+                $params
+            );
+            foreach ($rows as $r) {
+                $total += (float) $r['amount'];
+                $items[] = [
+                    'date'     => $r['date'] ? format_date($r['date']) : '—',
+                    'head'     => (string) $r['head'],
+                    'activity' => (string) $r['activity'],
+                    'party'    => (string) $r['party'],
+                    'mode'     => ucfirst(str_replace('_', ' ', (string) $r['mode'])),
+                    'remarks'  => (string) ($r['remarks'] ?? ''),
+                    'amount'   => number_format((float) $r['amount'], 2),
+                ];
+            }
+        }
+
+        $this->json([
+            'side'  => $side === 'expense' ? 'expense' : 'income',
+            'items' => $items,
+            'count' => count($items),
+            'total' => number_format($total, 2),
+        ]);
+    }
+
+    /**
      * Build the two-sided Income & Expenditure statement.
      *
      * Income = actual receipts grouped by income head. Expense = actual
@@ -349,20 +489,31 @@ final class ReportController extends Controller
 
         $income = [];
         $expense = [];
-        $mk = static fn (string $particulars, float $amount): array => ['date' => '', 'particulars' => $particulars, 'amount' => $amount];
+        // Each row carries a "drill" descriptor so the report can list the
+        // underlying receipts / expenditures behind the line in a popup.
+        $mk = static fn (string $particulars, float $amount, array $drill): array =>
+            ['date' => '', 'particulars' => $particulars, 'amount' => $amount, 'drill' => $drill];
+        $headKey = static fn ($id): string => $id === null ? 'none' : (string) $id;
 
         // ---- Income: actual receipts grouped by income head ----
         // Consolidated: one line per income head. Detailed: each head broken
         // down by the activity the receipt is linked to (or "General").
         if ($detailed) {
             $rows = $db->fetchAll(
-                "SELECT COALESCE(ih.name, 'Other Income') AS head,
+                "SELECT r.income_head_id AS head_id,
+                        COALESCE(ih.name, 'Other Income') AS head,
                         CASE
                             WHEN r.project_id IS NOT NULL THEN CONCAT('Project - ', p.name)
                             WHEN r.gift_id IS NOT NULL THEN CONCAT('Gift - ', g.title)
                             WHEN r.event_id IS NOT NULL THEN CONCAT('Event - ', ev.title)
                             ELSE 'General'
                         END AS activity,
+                        CASE
+                            WHEN r.project_id IS NOT NULL THEN CONCAT('project:', r.project_id)
+                            WHEN r.gift_id IS NOT NULL THEN CONCAT('gift:', r.gift_id)
+                            WHEN r.event_id IS NOT NULL THEN CONCAT('event:', r.event_id)
+                            ELSE 'general'
+                        END AS activity_key,
                         COALESCE(SUM(r.amount), 0) AS amt
                  FROM receipts r
                  LEFT JOIN income_heads ih ON ih.id = r.income_head_id
@@ -376,11 +527,14 @@ final class ReportController extends Controller
                 array_merge([$assocId], $rP)
             );
             foreach ($rows as $row) {
-                $income[] = $mk($row['head'] . ' — ' . $row['activity'], (float) $row['amt']);
+                $income[] = $mk($row['head'] . ' — ' . $row['activity'], (float) $row['amt'], [
+                    'side' => 'income', 'head' => $headKey($row['head_id']), 'activity' => (string) $row['activity_key'],
+                ]);
             }
         } else {
             $rows = $db->fetchAll(
-                "SELECT COALESCE(ih.name, 'Other Income') AS head, COALESCE(SUM(r.amount), 0) AS amt
+                "SELECT r.income_head_id AS head_id, COALESCE(ih.name, 'Other Income') AS head,
+                        COALESCE(SUM(r.amount), 0) AS amt
                  FROM receipts r
                  LEFT JOIN income_heads ih ON ih.id = r.income_head_id
                  WHERE r.association_id = ?{$rDate}
@@ -388,7 +542,9 @@ final class ReportController extends Controller
                 array_merge([$assocId], $rP)
             );
             foreach ($rows as $row) {
-                $income[] = $mk((string) $row['head'], (float) $row['amt']);
+                $income[] = $mk((string) $row['head'], (float) $row['amt'], [
+                    'side' => 'income', 'head' => $headKey($row['head_id']),
+                ]);
             }
         }
 
@@ -398,8 +554,10 @@ final class ReportController extends Controller
             ['gifts', 'g', 'title', 'e.gift_id', 'Gift'],
             ['events', 'ev', 'title', 'e.event_id', 'Event'],
         ] as [$table, $al, $nameCol, $link, $label]) {
+            $type = strtolower($label);
             if ($detailed) {
-                $q = "SELECT {$al}.{$nameCol} AS activity, COALESCE(eh.name, 'Unspecified') AS head,
+                $q = "SELECT {$link} AS activity_id, {$al}.{$nameCol} AS activity,
+                             e.expenditure_head_id AS head_id, COALESCE(eh.name, 'Unspecified') AS head,
                              COALESCE(SUM(e.amount), 0) AS amt
                       FROM expenditures e
                       JOIN {$table} {$al} ON {$al}.id = {$link}
@@ -408,17 +566,21 @@ final class ReportController extends Controller
                       GROUP BY {$link}, {$al}.{$nameCol}, e.expenditure_head_id, eh.name
                       HAVING amt <> 0 ORDER BY {$al}.{$nameCol}, head";
                 foreach ($db->fetchAll($q, array_merge([$assocId], $eP)) as $row) {
-                    $expense[] = $mk($label . ' - ' . $row['activity'] . ' - ' . $row['head'], (float) $row['amt']);
+                    $expense[] = $mk($label . ' - ' . $row['activity'] . ' - ' . $row['head'], (float) $row['amt'], [
+                        'side' => 'expense', 'activity' => $type . ':' . $row['activity_id'], 'head' => $headKey($row['head_id']),
+                    ]);
                 }
             } else {
-                $q = "SELECT {$al}.{$nameCol} AS activity, COALESCE(SUM(e.amount), 0) AS amt
+                $q = "SELECT {$link} AS activity_id, {$al}.{$nameCol} AS activity, COALESCE(SUM(e.amount), 0) AS amt
                       FROM expenditures e
                       JOIN {$table} {$al} ON {$al}.id = {$link}
                       WHERE e.association_id = ? AND {$link} IS NOT NULL{$eDate}
                       GROUP BY {$link}, {$al}.{$nameCol}
                       HAVING amt <> 0 ORDER BY {$al}.{$nameCol}";
                 foreach ($db->fetchAll($q, array_merge([$assocId], $eP)) as $row) {
-                    $expense[] = $mk($label . ' - ' . $row['activity'], (float) $row['amt']);
+                    $expense[] = $mk($label . ' - ' . $row['activity'], (float) $row['amt'], [
+                        'side' => 'expense', 'activity' => $type . ':' . $row['activity_id'],
+                    ]);
                 }
             }
         }
@@ -427,7 +589,8 @@ final class ReportController extends Controller
         $genWhere = 'e.association_id = ? AND e.project_id IS NULL AND e.gift_id IS NULL AND e.event_id IS NULL';
         if ($detailed) {
             $genRows = $db->fetchAll(
-                "SELECT COALESCE(eh.name, 'Unspecified') AS head, COALESCE(SUM(e.amount), 0) AS amt
+                "SELECT e.expenditure_head_id AS head_id, COALESCE(eh.name, 'Unspecified') AS head,
+                        COALESCE(SUM(e.amount), 0) AS amt
                  FROM expenditures e
                  LEFT JOIN expenditure_heads eh ON eh.id = e.expenditure_head_id
                  WHERE {$genWhere}{$eDate}
@@ -435,7 +598,9 @@ final class ReportController extends Controller
                 array_merge([$assocId], $eP)
             );
             foreach ($genRows as $row) {
-                $expense[] = $mk('Association (General) - ' . $row['head'], (float) $row['amt']);
+                $expense[] = $mk('Association (General) - ' . $row['head'], (float) $row['amt'], [
+                    'side' => 'expense', 'activity' => 'general', 'head' => $headKey($row['head_id']),
+                ]);
             }
         } else {
             $gen = (float) $db->fetchColumn(
@@ -443,7 +608,7 @@ final class ReportController extends Controller
                 array_merge([$assocId], $eP)
             );
             if ($gen != 0.0) {
-                $expense[] = $mk('Association (General)', $gen);
+                $expense[] = $mk('Association (General)', $gen, ['side' => 'expense', 'activity' => 'general']);
             }
         }
 
