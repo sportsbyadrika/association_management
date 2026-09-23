@@ -185,6 +185,59 @@ final class Demand extends Model
      * paid (fully covered), partial (some paid) or pending (none).
      * Cancelled demands are left untouched.
      */
+    /**
+     * Subscription totals for the dashboard cards: total dues, amount received
+     * and amount outstanding, each with a count.
+     * @return array<string,float>
+     */
+    public function subscriptionSummary(int $associationId): array
+    {
+        $row = $this->db->fetch(
+            "SELECT
+                COUNT(*) AS total_count,
+                COALESCE(SUM(d.amount), 0) AS total_amount,
+                COALESCE(SUM(LEAST(d.amount, COALESCE(r.paid, 0))), 0) AS received_amount,
+                COALESCE(SUM(CASE WHEN COALESCE(r.paid, 0) > 0 THEN 1 ELSE 0 END), 0) AS received_count,
+                COALESCE(SUM(GREATEST(d.amount - COALESCE(r.paid, 0), 0)), 0) AS outstanding_amount,
+                COALESCE(SUM(CASE WHEN d.amount - COALESCE(r.paid, 0) > 0.005 THEN 1 ELSE 0 END), 0) AS outstanding_count
+             FROM demands d
+             JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
+             LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
+                 ON r.demand_id = d.id
+             WHERE d.association_id = ? AND d.status <> 'cancelled' AND dp.name = 'Subscription'",
+            [$associationId, $associationId]
+        );
+        return array_map(static fn ($v) => (float) $v, $row ?? []);
+    }
+
+    /**
+     * Subscription dues for the drill-down list, filtered by view:
+     * 'total' (all), 'received' (paid > 0), 'outstanding' (balance > 0).
+     * @return list<array<string,mixed>>
+     */
+    public function subscriptionList(int $associationId, string $view = 'total'): array
+    {
+        $having = match ($view) {
+            'received'    => ' AND COALESCE(r.paid, 0) > 0',
+            'outstanding' => ' AND d.amount - COALESCE(r.paid, 0) > 0.005',
+            default       => '',
+        };
+        return $this->db->fetchAll(
+            "SELECT d.id, d.amount, d.due_date, d.status, d.member_id,
+                    m.name AS member_name, m.member_number,
+                    COALESCE(r.paid, 0) AS paid,
+                    GREATEST(d.amount - COALESCE(r.paid, 0), 0) AS balance
+             FROM demands d
+             JOIN members m ON m.id = d.member_id
+             JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
+             LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
+                 ON r.demand_id = d.id
+             WHERE d.association_id = ? AND d.status <> 'cancelled' AND dp.name = 'Subscription'{$having}
+             ORDER BY m.name ASC, d.id ASC",
+            [$associationId, $associationId]
+        );
+    }
+
     public function syncStatus(int $demandId): void
     {
         $demand = $this->find($demandId);

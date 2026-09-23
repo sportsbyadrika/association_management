@@ -38,36 +38,26 @@ $cardTag = $canNavigate ? 'a' : 'div';
     <?php endforeach; ?>
 </div>
 
-<div class="mt-4 card card-body">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-            <p class="text-sm font-medium text-gray-500">Outstanding member dues (dues − receipts)</p>
-            <p class="mt-1 text-2xl font-bold <?= $stats['outstanding'] > 0 ? 'text-amber-600' : 'text-brand-700' ?>">₹ <?= money(max(0, $stats['outstanding'])) ?></p>
-        </div>
-        <div class="grid grid-cols-2 gap-3 sm:w-96">
-            <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-                <p class="text-xs font-medium uppercase tracking-wide text-red-700">Mandatory</p>
-                <p class="mt-1 text-lg font-bold text-red-700">₹ <?= money(max(0, $stats['outstanding_mandatory'])) ?></p>
+<div class="mt-4 grid gap-4 sm:grid-cols-3">
+    <?php
+    $subscription = $subscription ?? [];
+    $subCards = [
+        ['Total Subscriptions', (float) ($subscription['total_amount'] ?? 0), (int) ($subscription['total_count'] ?? 0), 'text-gray-900', 'total'],
+        ['Amount Received', (float) ($subscription['received_amount'] ?? 0), (int) ($subscription['received_count'] ?? 0), 'text-brand-700', 'received'],
+        ['Amount Outstanding', (float) ($subscription['outstanding_amount'] ?? 0), (int) ($subscription['outstanding_count'] ?? 0), 'text-amber-600', 'outstanding'],
+    ];
+    foreach ($subCards as [$label, $amount, $count, $color, $view]): ?>
+        <a href="<?= e(url('/dashboard/subscriptions?view=' . $view)) ?>" class="card card-body block transition hover:shadow-md">
+            <div class="flex items-center justify-between">
+                <p class="text-sm font-medium text-gray-500"><?= e($label) ?></p>
+                <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600"><?= number_format($count) ?></span>
             </div>
-            <div class="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3">
-                <p class="text-xs font-medium uppercase tracking-wide text-sky-700">Optional</p>
-                <p class="mt-1 text-lg font-bold text-sky-700">₹ <?= money(max(0, $stats['outstanding_optional'])) ?></p>
-            </div>
-        </div>
-    </div>
-    <p class="mt-2 text-xs text-gray-400">Split by due purpose type — configure under Masters → Due Purpose.</p>
+            <p class="mt-2 text-2xl font-bold <?= $color ?>">₹ <?= money($amount) ?></p>
+            <p class="mt-1 text-xs text-brand-600">View list →</p>
+        </a>
+    <?php endforeach; ?>
 </div>
-
-<a href="<?= e(url('/reports/purpose-ledger')) ?>" class="mt-4 card card-body block transition hover:shadow-md">
-    <div class="flex items-center justify-between">
-        <div>
-            <p class="text-sm font-medium text-gray-500">Subscription dues</p>
-            <p class="mt-1 text-2xl font-bold <?= $stats['subscription_dues'] > 0 ? 'text-amber-600' : 'text-brand-700' ?>">₹ <?= money(max(0, $stats['subscription_dues'])) ?></p>
-        </div>
-        <span class="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">Subscription</span>
-    </div>
-    <p class="mt-2 text-xs text-gray-400">Outstanding for the Subscription purpose. Open the purpose ledger for the member-wise breakdown.</p>
-</a>
+<p class="mt-2 text-xs text-gray-400">Subscription dues across all members. Click a card for the member-wise list.</p>
 
 <div class="mt-8 grid gap-6 lg:grid-cols-2">
     <div class="card">

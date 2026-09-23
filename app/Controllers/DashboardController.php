@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Request;
+use App\Models\Demand;
 use App\Models\Expenditure;
 use App\Models\Member;
 use App\Models\Project;
@@ -28,38 +29,6 @@ final class DashboardController extends Controller
             'projects'     => (int) $db->fetchColumn("SELECT COUNT(*) FROM projects WHERE association_id = ? AND status IN ('planned','active')", [$assocId]),
             'projects_total' => (int) $db->fetchColumn('SELECT COUNT(*) FROM projects WHERE association_id = ?', [$assocId]),
         ];
-
-        // Outstanding member dues, split by demand-purpose type
-        // (mandatory vs optional). Sums the per-demand shortfall of every
-        // pending/partial demand.
-        $split = $db->fetch(
-            "SELECT
-                COALESCE(SUM(CASE WHEN dp.type = 'mandatory' THEN t.shortfall ELSE 0 END), 0) AS mandatory,
-                COALESCE(SUM(CASE WHEN dp.type = 'mandatory' THEN 0 ELSE t.shortfall END), 0) AS optional
-             FROM (
-                SELECT d.demand_purpose_id, GREATEST(d.amount - COALESCE(r.paid, 0), 0) AS shortfall
-                FROM demands d
-                LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
-                    ON r.demand_id = d.id
-                WHERE d.association_id = ? AND d.status IN ('pending', 'partial')
-             ) t
-             LEFT JOIN demand_purposes dp ON dp.id = t.demand_purpose_id",
-            [$assocId, $assocId]
-        );
-        $stats['outstanding_mandatory'] = (float) ($split['mandatory'] ?? 0);
-        $stats['outstanding_optional'] = (float) ($split['optional'] ?? 0);
-        $stats['outstanding'] = $stats['outstanding_mandatory'] + $stats['outstanding_optional'];
-
-        // Outstanding "Subscription" dues specifically (the Subscription purpose).
-        $stats['subscription_dues'] = (float) $db->fetchColumn(
-            "SELECT COALESCE(SUM(GREATEST(d.amount - COALESCE(r.paid, 0), 0)), 0)
-             FROM demands d
-             LEFT JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
-             LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
-                 ON r.demand_id = d.id
-             WHERE d.association_id = ? AND d.status IN ('pending', 'partial') AND dp.name = 'Subscription'",
-            [$assocId, $assocId]
-        );
 
         // Active-member count broken down by member type.
         $memberTypeCounts = $db->fetchAll(
@@ -93,9 +62,31 @@ final class DashboardController extends Controller
         $this->view('dashboard.index', [
             'title'              => 'Dashboard',
             'stats'              => $stats,
+            'subscription'       => (new Demand())->subscriptionSummary($assocId),
             'memberTypeCounts'   => $memberTypeCounts,
             'projectTypeSummary' => $projectTypeSummary,
             'recentReceipts'     => $recentReceipts,
+        ]);
+    }
+
+    /**
+     * Subscription drill-down: total / received / outstanding lists on one page.
+     */
+    public function subscriptions(Request $request): void
+    {
+        $assocId = Auth::associationId();
+        $this->authorizeAssociation($assocId);
+
+        $view = (string) $request->input('view', 'total');
+        if (!in_array($view, ['total', 'received', 'outstanding'], true)) {
+            $view = 'total';
+        }
+
+        $this->view('dashboard.subscriptions', [
+            'title'   => 'Subscriptions',
+            'view'    => $view,
+            'summary' => (new Demand())->subscriptionSummary($assocId),
+            'rows'    => (new Demand())->subscriptionList($assocId, $view),
         ]);
     }
 }
