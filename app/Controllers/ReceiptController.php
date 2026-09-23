@@ -102,10 +102,14 @@ final class ReceiptController extends Controller
         if ($demand !== null) {
             $dp = (new DemandPurpose())->find((int) ($demand['demand_purpose_id'] ?? 0));
             $demandPurposeName = $dp['name'] ?? null;
+            if ($demandPurposeName === null) {
+                $demandPurposeName = !empty($demand['project_id']) ? 'Project'
+                    : (!empty($demand['gift_id']) ? 'Gift' : (!empty($demand['event_id']) ? 'Event' : null));
+            }
         }
 
-        $selectedGift = (int) $request->input('gift_id', 0);
-        $selectedEvent = (int) $request->input('event_id', 0);
+        $selectedGift = $demand && !empty($demand['gift_id']) ? (int) $demand['gift_id'] : (int) $request->input('gift_id', 0);
+        $selectedEvent = $demand && !empty($demand['event_id']) ? (int) $demand['event_id'] : (int) $request->input('event_id', 0);
         $category = (string) $request->input('category', '');
         if ($category === '') {
             $category = $selectedProject > 0 ? 'project'
@@ -149,10 +153,11 @@ final class ReceiptController extends Controller
                 $this->withErrors(['amount' => 'The linked due is invalid.'], $input);
             }
             $input['member_id'] = (int) $demand['member_id'];
-            // A demand-linked receipt follows the demand: project category if the
-            // demand is tied to a project, otherwise general.
-            $input['category'] = $demand['project_id'] ? 'project' : 'general';
+            // A demand-linked receipt follows the demand's activity link.
+            $input['category'] = $this->demandCategory($demand);
             $input['project_id'] = $demand['project_id'] ? (int) $demand['project_id'] : null;
+            $input['gift_id'] = !empty($demand['gift_id']) ? (int) $demand['gift_id'] : null;
+            $input['event_id'] = !empty($demand['event_id']) ? (int) $demand['event_id'] : null;
         }
 
         $receipt = new Receipt();
@@ -197,6 +202,10 @@ final class ReceiptController extends Controller
         if ($demand !== null) {
             $dp = (new DemandPurpose())->find((int) ($demand['demand_purpose_id'] ?? 0));
             $demandPurposeName = $dp['name'] ?? null;
+            if ($demandPurposeName === null) {
+                $demandPurposeName = !empty($demand['project_id']) ? 'Project'
+                    : (!empty($demand['gift_id']) ? 'Gift' : (!empty($demand['event_id']) ? 'Event' : null));
+            }
         }
 
         $this->view('receipts.form', [
@@ -239,8 +248,10 @@ final class ReceiptController extends Controller
             $demand = (new Demand())->findForAssociation($demandId, $assocId);
             if ($demand !== null) {
                 $input['member_id'] = (int) $demand['member_id'];
-                $input['category'] = $demand['project_id'] ? 'project' : 'general';
+                $input['category'] = $this->demandCategory($demand);
                 $input['project_id'] = $demand['project_id'] ? (int) $demand['project_id'] : null;
+                $input['gift_id'] = !empty($demand['gift_id']) ? (int) $demand['gift_id'] : null;
+                $input['event_id'] = !empty($demand['event_id']) ? (int) $demand['event_id'] : null;
             }
         }
 
@@ -329,6 +340,21 @@ final class ReceiptController extends Controller
             'gift_id'    => $input['category'] === 'gift' ? $input['gift_id'] : null,
             'event_id'   => $input['category'] === 'event' ? $input['event_id'] : null,
         ];
+    }
+
+    /** The receipt category implied by a demand's activity link. */
+    private function demandCategory(array $demand): string
+    {
+        if (!empty($demand['project_id'])) {
+            return 'project';
+        }
+        if (!empty($demand['gift_id'])) {
+            return 'gift';
+        }
+        if (!empty($demand['event_id'])) {
+            return 'event';
+        }
+        return 'general';
     }
 
     /** @return array{0:?string,1:?string} */

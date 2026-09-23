@@ -1,5 +1,5 @@
 <?php $this->layout('layouts.app');
-/** @var array $details */ /** @var list $members */ /** @var ?string $projectName */ /** @var string $purposeName */
+/** @var array $details */ /** @var list $members */ /** @var ?string $forName */ /** @var string $forCategory */
 /** @var array $memberAmounts */ /** @var list $invalidIds */ /** @var ?string $error */
 $count = count($members);
 $defaultEach = (float) $details['amount'];
@@ -8,7 +8,6 @@ foreach ($members as $m) {
     $initialTotal += (float) ($memberAmounts[(int) $m['id']] ?? $defaultEach);
 }
 $invalidIds = $invalidIds ?? [];
-$purposeLabel = $purposeName ?? 'Due';
 ?>
 
 <div class="mb-6">
@@ -26,9 +25,15 @@ $purposeLabel = $purposeName ?? 'Due';
 
     <form method="post" action="<?= e(url('/demands/bulk')) ?>" data-amount-sum novalidate>
         <?= csrf_field() ?>
-        <input type="hidden" name="demand_purpose_id" value="<?= e((string) $details['demand_purpose_id']) ?>">
+        <input type="hidden" name="category" value="<?= e((string) $details['category']) ?>">
         <?php if ($details['project_id'] !== null): ?>
             <input type="hidden" name="project_id" value="<?= e((string) $details['project_id']) ?>">
+        <?php endif; ?>
+        <?php if ($details['gift_id'] !== null): ?>
+            <input type="hidden" name="gift_id" value="<?= e((string) $details['gift_id']) ?>">
+        <?php endif; ?>
+        <?php if ($details['event_id'] !== null): ?>
+            <input type="hidden" name="event_id" value="<?= e((string) $details['event_id']) ?>">
         <?php endif; ?>
         <input type="hidden" name="amount" value="<?= e($details['amount']) ?>">
         <input type="hidden" name="due_date" value="<?= e($details['due_date']) ?>">
@@ -37,8 +42,8 @@ $purposeLabel = $purposeName ?? 'Due';
         <!-- Summary -->
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div class="rounded-lg bg-gray-50 p-4">
-                <p class="text-xs uppercase tracking-wide text-gray-500">Purpose</p>
-                <p class="mt-1 font-semibold text-gray-900"><?= e($purposeLabel) ?><?= $projectName ? ' · ' . e($projectName) : '' ?></p>
+                <p class="text-xs uppercase tracking-wide text-gray-500">Due for</p>
+                <p class="mt-1 font-semibold text-gray-900"><?= e($forCategory) ?><?= $forName ? ' · ' . e($forName) : '' ?></p>
             </div>
             <div class="rounded-lg bg-gray-50 p-4">
                 <p class="text-xs uppercase tracking-wide text-gray-500">Default amount</p>

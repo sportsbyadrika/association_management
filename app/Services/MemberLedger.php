@@ -58,6 +58,12 @@ final class MemberLedger
             $manualPaid = $status === 'paid' && $settle > 0;
 
             $demandDate = $d['due_date'] ?: substr((string) $d['created_at'], 0, 10);
+            // Label: the purpose (e.g. Subscription) or the linked activity name.
+            $forLabel = $d['purpose_name']
+                ?? $d['project_name']
+                ?? $d['gift_name']
+                ?? $d['event_name']
+                ?? 'Due';
             $entries[] = [
                 'date'        => $demandDate,
                 'type'        => 'Due',
@@ -66,7 +72,7 @@ final class MemberLedger
                 'status'      => $status,
                 'remaining'   => $remaining,
                 'reopenable'  => $manualPaid,
-                'description' => ((string) ($d['purpose_name'] ?? 'Due')) . ($d['remarks'] ? ' — ' . $d['remarks'] : ''),
+                'description' => ((string) $forLabel) . ($d['remarks'] ? ' — ' . $d['remarks'] : ''),
                 'debit'       => $amount,
                 'credit'      => 0.0,
                 'sort'        => $demandDate . '-0',
