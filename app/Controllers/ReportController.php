@@ -271,74 +271,295 @@ final class ReportController extends Controller
         $assocId = Auth::associationId();
         [$from, $to] = $this->dateRange($request);
 
-        $data = (new Project())->incomeExpenditureByProject($assocId, $from, $to);
+        $consolidated = $this->incomeExpenditureStatement($assocId, $from, $to, false);
+        $detailed = $this->incomeExpenditureStatement($assocId, $from, $to, true);
 
-        // Assemble display rows: each project, then a general/non-project row.
-        $rows = [];
-        foreach ($data['rows'] as $r) {
-            $income = (float) $r['income'];
-            $expense = (float) $r['expense'];
-            $rows[] = [
-                'project' => $r['name'],
-                'income'  => $income,
-                'expense' => $expense,
-                'net'     => $income - $expense,
-            ];
-        }
-        $gen = $data['general'];
-        if ($gen['income'] > 0 || $gen['expense'] > 0) {
-            $rows[] = [
-                'project' => 'General / Non-project',
-                'income'  => (float) $gen['income'],
-                'expense' => (float) $gen['expense'],
-                'net'     => (float) $gen['income'] - (float) $gen['expense'],
-            ];
-        }
-
-        $totals = ['income' => 0.0, 'expense' => 0.0, 'net' => 0.0];
-        foreach ($rows as $r) {
-            $totals['income'] += $r['income'];
-            $totals['expense'] += $r['expense'];
-            $totals['net'] += $r['net'];
+        $tab = (string) $request->input('tab', 'consolidated');
+        if (!in_array($tab, ['consolidated', 'detailed'], true)) {
+            $tab = 'consolidated';
         }
 
         $format = (string) $request->input('format', '');
-        if ($format === 'csv' || $format === 'pdf') {
-            $columns = ['Sl No.', 'Project', 'Income', 'Expense', 'Net'];
-            $out = [];
-            $sl = 0;
-            foreach ($rows as $r) {
-                $out[] = [
-                    ++$sl,
-                    $r['project'],
-                    number_format($r['income'], 2),
-                    number_format($r['expense'], 2),
-                    number_format($r['net'], 2),
-                ];
-            }
-            // Grand total row.
-            $out[] = [
-                '', 'Grand Total',
-                number_format($totals['income'], 2),
-                number_format($totals['expense'], 2),
-                number_format($totals['net'], 2),
-            ];
-            $meta = $this->rangeMeta($from, $to);
-            $summary = [
-                'Total income'  => number_format($totals['income'], 2),
-                'Total expense' => number_format($totals['expense'], 2),
-                'Net'           => number_format($totals['net'], 2),
-            ];
-            $this->emit($request, 'income-expenditure-report', 'Income & Expenditure Report', $columns, $out, $meta, $summary);
+        if ($format === 'csv') {
+            // Export the selected tab in the side-by-side spreadsheet layout.
+            $active = $tab === 'detailed' ? $detailed : $consolidated;
+            $columns = ['Date', 'Particulars', 'Income', 'Date', 'Particulars', 'Expense'];
+            $rows = $this->statementSideBySide($active);
+            $filename = 'income-expenditure-' . $tab;
+            CsvExporter::download($filename, $columns, $rows);
+        }
+        if ($format === 'pdf') {
+            // A single PDF holding both tabs as sections.
+            $body = '<div style="font-size:13px;font-weight:bold;color:#065f46;margin:4px 0 2px">Consolidated</div>'
+                . $this->statementHtmlTable($consolidated)
+                . '<div style="font-size:13px;font-weight:bold;color:#065f46;margin:22px 0 2px">Detailed</div>'
+                . $this->statementHtmlTable($detailed);
+            $this->pdf()->streamHtml(
+                'income-expenditure-report',
+                'Income & Expenditure Report',
+                $body,
+                $this->rangeMeta($from, $to),
+                'landscape'
+            );
         }
 
         $this->view('reports.income_expenditure', [
-            'title'  => 'Income & Expenditure Report',
-            'rows'   => $rows,
-            'totals' => $totals,
-            'from'   => $from,
-            'to'     => $to,
+            'title'        => 'Income & Expenditure Report',
+            'consolidated' => $consolidated,
+            'detailed'     => $detailed,
+            'tab'          => $tab,
+            'from'         => $from,
+            'to'           => $to,
         ]);
+    }
+
+    /**
+     * Build the two-sided Income & Expenditure statement.
+     *
+     * Income = subscription dues raised (unlinked demands) + actual receipts
+     * for projects / gifts / events. Expense = actual expenditures for
+     * projects / gifts / events + general (association) spending.
+     *
+     * When $detailed is true each activity is broken down one level further by
+     * income / expenditure head (subscriptions by demand purpose).
+     *
+     * @return array{income:list<array{date:string,particulars:string,amount:float}>,expense:list<array{date:string,particulars:string,amount:float}>,incomeTotal:float,expenseTotal:float,balance:float}
+     */
+    private function incomeExpenditureStatement(int $assocId, ?string $from, ?string $to, bool $detailed): array
+    {
+        $db = (new Receipt())->db();
+
+        // Date-range fragments per source table.
+        $rDate = '';
+        $rP = [];
+        $eDate = '';
+        $eP = [];
+        $dDate = '';
+        $dP = [];
+        if ($from !== null && $from !== '') {
+            $rDate .= ' AND r.received_on >= ?';
+            $rP[] = $from;
+            $eDate .= ' AND e.paid_on >= ?';
+            $eP[] = $from;
+            $dDate .= ' AND COALESCE(d.due_date, DATE(d.created_at)) >= ?';
+            $dP[] = $from;
+        }
+        if ($to !== null && $to !== '') {
+            $rDate .= ' AND r.received_on <= ?';
+            $rP[] = $to;
+            $eDate .= ' AND e.paid_on <= ?';
+            $eP[] = $to;
+            $dDate .= ' AND COALESCE(d.due_date, DATE(d.created_at)) <= ?';
+            $dP[] = $to;
+        }
+
+        $income = [];
+        $expense = [];
+        $mk = static fn (string $particulars, float $amount): array => ['date' => '', 'particulars' => $particulars, 'amount' => $amount];
+
+        // ---- Income: subscription dues (unlinked, non-cancelled demands) ----
+        $subWhere = "d.association_id = ? AND d.status <> 'cancelled'
+                     AND d.project_id IS NULL AND d.gift_id IS NULL AND d.event_id IS NULL";
+        if ($detailed) {
+            $subRows = $db->fetchAll(
+                "SELECT d.purpose AS purpose, COALESCE(SUM(d.amount), 0) AS amt
+                 FROM demands d WHERE {$subWhere}{$dDate}
+                 GROUP BY d.purpose HAVING amt <> 0 ORDER BY d.purpose",
+                array_merge([$assocId], $dP)
+            );
+            foreach ($subRows as $s) {
+                $income[] = $mk('Membership Subscriptions Due — ' . ucfirst((string) $s['purpose']), (float) $s['amt']);
+            }
+        } else {
+            $sub = (float) $db->fetchColumn(
+                "SELECT COALESCE(SUM(d.amount), 0) FROM demands d WHERE {$subWhere}{$dDate}",
+                array_merge([$assocId], $dP)
+            );
+            if ($sub != 0.0) {
+                $income[] = $mk('Membership Subscriptions Due', $sub);
+            }
+        }
+
+        // ---- Income: receipts per project / gift / event ----
+        foreach ([
+            ['projects', 'p', 'name', 'r.project_id', 'Project'],
+            ['gifts', 'g', 'title', 'r.gift_id', 'Gift'],
+            ['events', 'ev', 'title', 'r.event_id', 'Event'],
+        ] as [$table, $al, $nameCol, $link, $label]) {
+            if ($detailed) {
+                $q = "SELECT {$al}.{$nameCol} AS activity, COALESCE(ih.name, 'Unspecified') AS head,
+                             COALESCE(SUM(r.amount), 0) AS amt
+                      FROM receipts r
+                      JOIN {$table} {$al} ON {$al}.id = {$link}
+                      LEFT JOIN income_heads ih ON ih.id = r.income_head_id
+                      WHERE r.association_id = ? AND {$link} IS NOT NULL{$rDate}
+                      GROUP BY {$link}, {$al}.{$nameCol}, r.income_head_id, ih.name
+                      HAVING amt <> 0 ORDER BY {$al}.{$nameCol}, head";
+                foreach ($db->fetchAll($q, array_merge([$assocId], $rP)) as $row) {
+                    $income[] = $mk($label . ' - ' . $row['activity'] . ' - ' . $row['head'], (float) $row['amt']);
+                }
+            } else {
+                $q = "SELECT {$al}.{$nameCol} AS activity, COALESCE(SUM(r.amount), 0) AS amt
+                      FROM receipts r
+                      JOIN {$table} {$al} ON {$al}.id = {$link}
+                      WHERE r.association_id = ? AND {$link} IS NOT NULL{$rDate}
+                      GROUP BY {$link}, {$al}.{$nameCol}
+                      HAVING amt <> 0 ORDER BY {$al}.{$nameCol}";
+                foreach ($db->fetchAll($q, array_merge([$assocId], $rP)) as $row) {
+                    $income[] = $mk($label . ' - ' . $row['activity'], (float) $row['amt']);
+                }
+            }
+        }
+
+        // ---- Expense: expenditures per project / gift / event ----
+        foreach ([
+            ['projects', 'p', 'name', 'e.project_id', 'Project'],
+            ['gifts', 'g', 'title', 'e.gift_id', 'Gift'],
+            ['events', 'ev', 'title', 'e.event_id', 'Event'],
+        ] as [$table, $al, $nameCol, $link, $label]) {
+            if ($detailed) {
+                $q = "SELECT {$al}.{$nameCol} AS activity, COALESCE(eh.name, 'Unspecified') AS head,
+                             COALESCE(SUM(e.amount), 0) AS amt
+                      FROM expenditures e
+                      JOIN {$table} {$al} ON {$al}.id = {$link}
+                      LEFT JOIN expenditure_heads eh ON eh.id = e.expenditure_head_id
+                      WHERE e.association_id = ? AND {$link} IS NOT NULL{$eDate}
+                      GROUP BY {$link}, {$al}.{$nameCol}, e.expenditure_head_id, eh.name
+                      HAVING amt <> 0 ORDER BY {$al}.{$nameCol}, head";
+                foreach ($db->fetchAll($q, array_merge([$assocId], $eP)) as $row) {
+                    $expense[] = $mk($label . ' - ' . $row['activity'] . ' - ' . $row['head'], (float) $row['amt']);
+                }
+            } else {
+                $q = "SELECT {$al}.{$nameCol} AS activity, COALESCE(SUM(e.amount), 0) AS amt
+                      FROM expenditures e
+                      JOIN {$table} {$al} ON {$al}.id = {$link}
+                      WHERE e.association_id = ? AND {$link} IS NOT NULL{$eDate}
+                      GROUP BY {$link}, {$al}.{$nameCol}
+                      HAVING amt <> 0 ORDER BY {$al}.{$nameCol}";
+                foreach ($db->fetchAll($q, array_merge([$assocId], $eP)) as $row) {
+                    $expense[] = $mk($label . ' - ' . $row['activity'], (float) $row['amt']);
+                }
+            }
+        }
+
+        // ---- Expense: general / association (unlinked) ----
+        $genWhere = 'e.association_id = ? AND e.project_id IS NULL AND e.gift_id IS NULL AND e.event_id IS NULL';
+        if ($detailed) {
+            $genRows = $db->fetchAll(
+                "SELECT COALESCE(eh.name, 'Unspecified') AS head, COALESCE(SUM(e.amount), 0) AS amt
+                 FROM expenditures e
+                 LEFT JOIN expenditure_heads eh ON eh.id = e.expenditure_head_id
+                 WHERE {$genWhere}{$eDate}
+                 GROUP BY e.expenditure_head_id, eh.name HAVING amt <> 0 ORDER BY head",
+                array_merge([$assocId], $eP)
+            );
+            foreach ($genRows as $row) {
+                $expense[] = $mk('Association (General) - ' . $row['head'], (float) $row['amt']);
+            }
+        } else {
+            $gen = (float) $db->fetchColumn(
+                "SELECT COALESCE(SUM(e.amount), 0) FROM expenditures e WHERE {$genWhere}{$eDate}",
+                array_merge([$assocId], $eP)
+            );
+            if ($gen != 0.0) {
+                $expense[] = $mk('Association (General)', $gen);
+            }
+        }
+
+        $incomeTotal = array_sum(array_map(static fn ($r) => $r['amount'], $income));
+        $expenseTotal = array_sum(array_map(static fn ($r) => $r['amount'], $expense));
+
+        return [
+            'income'       => $income,
+            'expense'      => $expense,
+            'incomeTotal'  => (float) $incomeTotal,
+            'expenseTotal' => (float) $expenseTotal,
+            'balance'      => (float) $incomeTotal - (float) $expenseTotal,
+        ];
+    }
+
+    /**
+     * Flatten a statement into the 6-column side-by-side layout (Income cols +
+     * Expense cols), followed by Total and Balance rows. Used for CSV export.
+     *
+     * @param array{income:list<array<string,mixed>>,expense:list<array<string,mixed>>,incomeTotal:float,expenseTotal:float,balance:float} $s
+     * @return list<list<string>>
+     */
+    private function statementSideBySide(array $s): array
+    {
+        $income = $s['income'];
+        $expense = $s['expense'];
+        $n = max(count($income), count($expense));
+        $rows = [];
+        for ($i = 0; $i < $n; $i++) {
+            $inc = $income[$i] ?? null;
+            $exp = $expense[$i] ?? null;
+            $rows[] = [
+                $inc ? (string) $inc['date'] : '',
+                $inc ? (string) $inc['particulars'] : '',
+                $inc ? number_format((float) $inc['amount'], 2) : '',
+                $exp ? (string) $exp['date'] : '',
+                $exp ? (string) $exp['particulars'] : '',
+                $exp ? number_format((float) $exp['amount'], 2) : '',
+            ];
+        }
+        $rows[] = ['', 'Total', number_format($s['incomeTotal'], 2), '', 'Total', number_format($s['expenseTotal'], 2)];
+        $rows[] = ['', '', '', '', 'Balance', number_format($s['balance'], 2)];
+        return $rows;
+    }
+
+    /**
+     * Render a statement as an HTML two-sided table for the PDF.
+     *
+     * @param array{income:list<array<string,mixed>>,expense:list<array<string,mixed>>,incomeTotal:float,expenseTotal:float,balance:float} $s
+     */
+    private function statementHtmlTable(array $s): string
+    {
+        $esc = static fn ($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+        $money = static fn (float $v) => number_format($v, 2);
+        $th = 'padding:5px 8px;border:1px solid #d1fae5;background:#ecfdf5;color:#065f46;font-size:9px;text-transform:uppercase;text-align:left';
+        $td = 'padding:4px 8px;border:1px solid #e5e7eb';
+        $tdR = $td . ';text-align:right';
+
+        $income = $s['income'];
+        $expense = $s['expense'];
+        $n = max(count($income), count($expense), 1);
+
+        $body = '';
+        for ($i = 0; $i < $n; $i++) {
+            $inc = $income[$i] ?? null;
+            $exp = $expense[$i] ?? null;
+            $alt = $i % 2 === 1 ? ';background:#f9fafb' : '';
+            $body .= '<tr>'
+                . '<td style="' . $td . $alt . '">' . ($inc ? $esc($inc['date']) : '') . '</td>'
+                . '<td style="' . $td . $alt . '">' . ($inc ? $esc($inc['particulars']) : '') . '</td>'
+                . '<td style="' . $tdR . $alt . '">' . ($inc ? $money((float) $inc['amount']) : '') . '</td>'
+                . '<td style="' . $td . $alt . '">' . ($exp ? $esc($exp['date']) : '') . '</td>'
+                . '<td style="' . $td . $alt . '">' . ($exp ? $esc($exp['particulars']) : '') . '</td>'
+                . '<td style="' . $tdR . $alt . '">' . ($exp ? $money((float) $exp['amount']) : '') . '</td>'
+                . '</tr>';
+        }
+        $totStyle = $td . ';font-weight:bold;background:#f3f4f6';
+        $totStyleR = $tdR . ';font-weight:bold;background:#f3f4f6';
+        $body .= '<tr>'
+            . '<td style="' . $totStyle . '"></td><td style="' . $totStyle . '">Total</td><td style="' . $totStyleR . '">' . $money($s['incomeTotal']) . '</td>'
+            . '<td style="' . $totStyle . '"></td><td style="' . $totStyle . '">Total</td><td style="' . $totStyleR . '">' . $money($s['expenseTotal']) . '</td>'
+            . '</tr>';
+        $body .= '<tr>'
+            . '<td style="' . $td . '"></td><td style="' . $td . '"></td><td style="' . $td . '"></td>'
+            . '<td style="' . $td . ';font-weight:bold"></td><td style="' . $td . ';font-weight:bold">Balance</td>'
+            . '<td style="' . $tdR . ';font-weight:bold">' . $money($s['balance']) . '</td>'
+            . '</tr>';
+
+        return '<table style="width:100%;border-collapse:collapse;margin-top:6px">'
+            . '<thead>'
+            . '<tr><th colspan="3" style="' . $th . ';text-align:center;font-size:11px">Income</th>'
+            . '<th colspan="3" style="' . $th . ';text-align:center;font-size:11px">Expenditure</th></tr>'
+            . '<tr>'
+            . '<th style="' . $th . '">Date</th><th style="' . $th . '">Particulars</th><th style="' . $th . ';text-align:right">Income</th>'
+            . '<th style="' . $th . '">Date</th><th style="' . $th . '">Particulars</th><th style="' . $th . ';text-align:right">Expense</th>'
+            . '</tr>'
+            . '</thead><tbody>' . $body . '</tbody></table>';
     }
 
     // ---- 5. Purpose (e.g. Subscription) ledger -------------------------
