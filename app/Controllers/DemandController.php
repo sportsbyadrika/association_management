@@ -227,6 +227,74 @@ final class DemandController extends Controller
     }
 
     /**
+     * Edit a single existing due. The member is fixed; the "due for" category,
+     * linked activity, amount, due date and remarks can be changed. Status is
+     * managed by the mark-paid / reopen / cancel actions, not here.
+     */
+    public function edit(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $demand = (new Demand())->findForAssociation((int) $params['id'], $assocId);
+        if ($demand === null) {
+            Response::notFound();
+        }
+        if ($demand['status'] === 'cancelled') {
+            $this->flash('error', 'A cancelled due cannot be edited.');
+            $this->redirect('/demands');
+        }
+        $category = !empty($demand['project_id']) ? 'project'
+            : (!empty($demand['gift_id']) ? 'gift' : (!empty($demand['event_id']) ? 'event' : 'subscription'));
+
+        $this->view('demands.edit', [
+            'title'    => 'Edit Due',
+            'demand'   => $demand,
+            'member'   => (new Member())->findForAssociation((int) $demand['member_id'], $assocId),
+            'category' => $category,
+            'projects' => (new Project())->options($assocId),
+            'gifts'    => (new Gift())->options($assocId),
+            'events'   => (new Event())->options($assocId),
+        ]);
+        Session::clearFormState();
+    }
+
+    /** Persist edits to a single due. */
+    public function update(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $demandModel = new Demand();
+        $demand = $demandModel->findForAssociation((int) $params['id'], $assocId);
+        if ($demand === null) {
+            Response::notFound();
+        }
+        if ($demand['status'] === 'cancelled') {
+            $this->flash('error', 'A cancelled due cannot be edited.');
+            $this->redirect('/demands');
+        }
+
+        $details = $this->validateDetails($request);
+        $demandModel->update((int) $demand['id'], [
+            'demand_purpose_id' => $details['demand_purpose_id'],
+            'project_id'        => $details['project_id'],
+            'gift_id'           => $details['gift_id'],
+            'event_id'          => $details['event_id'],
+            'amount'            => $details['amount'],
+            'due_date'          => $details['due_date'] ?: null,
+            'remarks'           => $details['remarks'] ?: null,
+        ]);
+
+        // Re-evaluate status from receipts when the amount relationship may have
+        // changed, but leave a manually-marked-paid due (paid with no receipts)
+        // untouched.
+        $paid = (new Receipt())->totalForDemand((int) $demand['id']);
+        if ($paid > 0 || in_array($demand['status'], ['pending', 'partial'], true)) {
+            $demandModel->syncStatus((int) $demand['id']);
+        }
+
+        $this->flash('success', 'Due updated.');
+        $this->redirect('/demands');
+    }
+
+    /**
      * Manually mark a demand as paid without recording a receipt
      * (e.g. paid in kind, waived, or reconciled outside the system).
      */
