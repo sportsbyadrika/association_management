@@ -41,6 +41,7 @@ $renderMemberList = static function (array $list): void {
         <a href="<?= e(url('/receipts/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add collection</a>
         <a href="<?= e(url('/expenditures/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add expenditure</a>
         <a href="<?= e(url('/projects/' . $project['id'] . '/ledger')) ?>" target="_blank" rel="noopener" class="btn-secondary btn-sm">Print Ledger</a>
+        <a href="<?= e(url('/activities/project/' . $project['id'] . '/move')) ?>" class="btn-secondary btn-sm">Move…</a>
         <a href="<?= e(url('/projects/' . $project['id'] . '/edit')) ?>" class="btn-primary btn-sm">Edit</a>
     </div>
 </div>

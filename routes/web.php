@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 use App\Controllers\AssociationController;
 use App\Controllers\AuthController;
+use App\Controllers\ActivityMoveController;
 use App\Controllers\BankAccountController;
 use App\Controllers\CommitteeController;
 use App\Controllers\CommitteeOfficialController;
@@ -125,6 +126,11 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->get('/events/{id}/edit', [EventController::class, 'edit']);
     $router->post('/events/{id}', [EventController::class, 'update']);
     $router->post('/events/{id}/delete', [EventController::class, 'destroy']);
+
+    // Move an activity (project/gift/event) to another type.
+    $router->get('/activities/{from}/{id}/move', [ActivityMoveController::class, 'chooseDestination']);
+    $router->get('/activities/{from}/{id}/move/{to}', [ActivityMoveController::class, 'review']);
+    $router->post('/activities/{from}/{id}/move/{to}', [ActivityMoveController::class, 'perform']);
 
     // Demands (bulk raise: details + member selection -> confirm -> create)
     $router->get('/demands', [DemandController::class, 'index']);
