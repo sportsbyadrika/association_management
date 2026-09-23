@@ -151,12 +151,22 @@ final class GiftController extends Controller
     public function destroy(Request $request, array $params): void
     {
         $assocId = Auth::associationId();
-        $gift = (new Gift())->findForAssociation((int) $params['id'], $assocId);
+        $giftModel = new Gift();
+        $gift = $giftModel->findForAssociation((int) $params['id'], $assocId);
         if ($gift === null) {
             Response::notFound();
         }
-        (new Gift())->delete((int) $gift['id']);
-        $this->flash('success', 'Gift deleted.');
+        $giftId = (int) $gift['id'];
+        // Gifts carry no FKs: unlink receipts/expenditures first so their money
+        // is preserved as general collections/expenses instead of being orphaned
+        // (which would hide it from reports).
+        $db = $giftModel->db();
+        $db->transaction(function () use ($db, $giftId, $assocId, $giftModel): void {
+            $db->run('UPDATE receipts SET gift_id = NULL, category = ? WHERE gift_id = ? AND association_id = ?', ['general', $giftId, $assocId]);
+            $db->run('UPDATE expenditures SET gift_id = NULL, category = ? WHERE gift_id = ? AND association_id = ?', ['association', $giftId, $assocId]);
+            $giftModel->delete($giftId);
+        });
+        $this->flash('success', 'Gift deleted. Any linked receipts and expenditures were kept as general entries.');
         $this->redirect('/gifts');
     }
 

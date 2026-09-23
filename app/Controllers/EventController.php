@@ -151,12 +151,22 @@ final class EventController extends Controller
     public function destroy(Request $request, array $params): void
     {
         $assocId = Auth::associationId();
-        $event = (new Event())->findForAssociation((int) $params['id'], $assocId);
+        $eventModel = new Event();
+        $event = $eventModel->findForAssociation((int) $params['id'], $assocId);
         if ($event === null) {
             Response::notFound();
         }
-        (new Event())->delete((int) $event['id']);
-        $this->flash('success', 'Event deleted.');
+        $eventId = (int) $event['id'];
+        // Events carry no FKs: unlink receipts/expenditures first so their money
+        // is preserved as general entries instead of being orphaned (which would
+        // hide it from reports).
+        $db = $eventModel->db();
+        $db->transaction(function () use ($db, $eventId, $assocId, $eventModel): void {
+            $db->run('UPDATE receipts SET event_id = NULL, category = ? WHERE event_id = ? AND association_id = ?', ['general', $eventId, $assocId]);
+            $db->run('UPDATE expenditures SET event_id = NULL, category = ? WHERE event_id = ? AND association_id = ?', ['association', $eventId, $assocId]);
+            $eventModel->delete($eventId);
+        });
+        $this->flash('success', 'Event deleted. Any linked receipts and expenditures were kept as general entries.');
         $this->redirect('/events');
     }
 
