@@ -82,10 +82,15 @@ final class GiftController extends Controller
         if ($gift === null) {
             Response::notFound();
         }
+        $giftModel = new Gift();
         $this->view('gifts.show', [
-            'title' => $gift['title'],
-            'gift' => $gift,
-            'giftMembers' => (new Gift())->members((int) $gift['id']),
+            'title'        => $gift['title'],
+            'gift'         => $gift,
+            'giftMembers'  => $giftModel->members((int) $gift['id']),
+            'collections'  => $giftModel->collectionList((int) $gift['id']),
+            'expenditures' => $giftModel->expenditureList((int) $gift['id']),
+            'collected'    => $giftModel->collected((int) $gift['id']),
+            'spent'        => $giftModel->spent((int) $gift['id']),
         ]);
     }
 

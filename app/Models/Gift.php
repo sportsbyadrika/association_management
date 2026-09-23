@@ -39,6 +39,57 @@ final class Gift extends Model
         );
     }
 
+    public function spent(int $giftId): float
+    {
+        return (float) $this->db->fetchColumn(
+            'SELECT COALESCE(SUM(amount),0) FROM expenditures WHERE gift_id = ?',
+            [$giftId]
+        );
+    }
+
+    public function collected(int $giftId): float
+    {
+        return (float) $this->db->fetchColumn(
+            'SELECT COALESCE(SUM(amount),0) FROM receipts WHERE gift_id = ?',
+            [$giftId]
+        );
+    }
+
+    /**
+     * Collections (receipts) booked to the gift.
+     * @return list<array<string,mixed>>
+     */
+    public function collectionList(int $giftId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT r.received_on, r.amount, r.mode, r.remarks,
+                    ih.name AS income_head_name, m.name AS member_name
+             FROM receipts r
+             LEFT JOIN income_heads ih ON ih.id = r.income_head_id
+             LEFT JOIN members m ON m.id = r.member_id
+             WHERE r.gift_id = ?
+             ORDER BY r.received_on DESC, r.id DESC",
+            [$giftId]
+        );
+    }
+
+    /**
+     * Expenditures booked to the gift.
+     * @return list<array<string,mixed>>
+     */
+    public function expenditureList(int $giftId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT e.paid_on, e.amount, e.mode, e.remarks, e.category,
+                    eh.name AS head_name
+             FROM expenditures e
+             LEFT JOIN expenditure_heads eh ON eh.id = e.expenditure_head_id
+             WHERE e.gift_id = ?
+             ORDER BY e.paid_on DESC, e.id DESC",
+            [$giftId]
+        );
+    }
+
     /**
      * Replace a gift's member contributions. $pairs is [[member_id, amount], ...];
      * only members belonging to the association are stored.
