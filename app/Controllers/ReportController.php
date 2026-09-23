@@ -362,13 +362,15 @@ final class ReportController extends Controller
                      AND d.project_id IS NULL AND d.gift_id IS NULL AND d.event_id IS NULL";
         if ($detailed) {
             $subRows = $db->fetchAll(
-                "SELECT d.purpose AS purpose, COALESCE(SUM(d.amount), 0) AS amt
-                 FROM demands d WHERE {$subWhere}{$dDate}
-                 GROUP BY d.purpose HAVING amt <> 0 ORDER BY d.purpose",
+                "SELECT COALESCE(dp.name, 'Subscription') AS purpose, COALESCE(SUM(d.amount), 0) AS amt
+                 FROM demands d
+                 LEFT JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
+                 WHERE {$subWhere}{$dDate}
+                 GROUP BY d.demand_purpose_id, dp.name HAVING amt <> 0 ORDER BY dp.name",
                 array_merge([$assocId], $dP)
             );
             foreach ($subRows as $s) {
-                $income[] = $mk('Membership Subscriptions Due — ' . ucfirst((string) $s['purpose']), (float) $s['amt']);
+                $income[] = $mk('Membership Subscriptions Due — ' . (string) $s['purpose'], (float) $s['amt']);
             }
         } else {
             $sub = (float) $db->fetchColumn(
