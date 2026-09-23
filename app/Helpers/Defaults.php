@@ -17,7 +17,7 @@ final class Defaults
         $sets = [
             'member_types'         => ['Regular', 'Life', 'Honorary'],
             'family_member_types'  => ['Spouse', 'Child', 'Parent', 'Sibling', 'Other'],
-            'income_heads'         => ['Subscription', 'Donation', 'Project Contribution'],
+            'income_heads'         => ['Subscription', 'Donation', 'Contributions'],
             'expenditure_heads'    => ['Administrative', 'Project', 'Maintenance'],
             'project_types'        => ['General', 'Infrastructure', 'Welfare'],
             'gift_types'           => ['Cash', 'In-kind', 'Trophy', 'Certificate', 'Other'],

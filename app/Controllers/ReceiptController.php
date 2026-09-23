@@ -85,12 +85,12 @@ final class ReceiptController extends Controller
         $incomeHeads = (new Master('income-heads'))->activeForAssociation($assocId);
 
         // Auto-select the income head that matches the demand: a project-linked
-        // demand -> "Project Contribution"; otherwise match the purpose name.
+        // demand -> "Contributions"; otherwise match the purpose name.
         $selectedIncomeHead = (int) $request->input('income_head_id', 0);
         if ($demand !== null && $selectedIncomeHead === 0) {
             $wanted = [];
             if (!empty($demand['project_id'])) {
-                $wanted = ['project contribution', 'project'];
+                $wanted = ['contributions', 'project contribution', 'project'];
             } else {
                 $purpose = (new DemandPurpose())->find((int) ($demand['demand_purpose_id'] ?? 0));
                 if ($purpose !== null) {
