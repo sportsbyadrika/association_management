@@ -7,7 +7,9 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Request;
+use App\Models\Demand;
 use App\Models\Expenditure;
+use App\Models\FinancialYear;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Receipt;
@@ -20,48 +22,35 @@ final class DashboardController extends Controller
         $this->authorizeAssociation($assocId);
 
         $db = (new Member())->db();
+        [$financialYears, $selectedFy, $fyParam] = $this->resolveFinancialYear($request, $assocId);
+        $from = $selectedFy['start_date'] ?? null;
+        $to = $selectedFy['end_date'] ?? null;
+        $inRange = $from !== null && $to !== null;
+
+        // Receipts total, financial-year scoped.
+        $recSql = 'SELECT COALESCE(SUM(amount),0) FROM receipts WHERE association_id = ?';
+        $recParams = [$assocId];
+        if ($inRange) {
+            $recSql .= ' AND received_on BETWEEN ? AND ?';
+            array_push($recParams, $from, $to);
+        }
+        // Expenditure total, financial-year scoped.
+        $expSql = 'SELECT COALESCE(SUM(amount),0) FROM expenditures WHERE association_id = ?';
+        $expParams = [$assocId];
+        if ($inRange) {
+            $expSql .= ' AND paid_on BETWEEN ? AND ?';
+            array_push($expParams, $from, $to);
+        }
 
         $stats = [
-            'members'      => (new Member())->countForAssociation($assocId),
-            'receipts'     => (float) $db->fetchColumn('SELECT COALESCE(SUM(amount),0) FROM receipts WHERE association_id = ?', [$assocId]),
-            'expenditures' => (new Expenditure())->totalForAssociation($assocId),
-            'projects'     => (int) $db->fetchColumn("SELECT COUNT(*) FROM projects WHERE association_id = ? AND status IN ('planned','active')", [$assocId]),
+            'members'        => (new Member())->countForAssociation($assocId),
+            'receipts'       => (float) $db->fetchColumn($recSql, $recParams),
+            'expenditures'   => (float) $db->fetchColumn($expSql, $expParams),
+            'projects'       => (int) $db->fetchColumn("SELECT COUNT(*) FROM projects WHERE association_id = ? AND status IN ('planned','active')", [$assocId]),
             'projects_total' => (int) $db->fetchColumn('SELECT COUNT(*) FROM projects WHERE association_id = ?', [$assocId]),
         ];
 
-        // Outstanding member dues, split by demand-purpose type
-        // (mandatory vs optional). Sums the per-demand shortfall of every
-        // pending/partial demand.
-        $split = $db->fetch(
-            "SELECT
-                COALESCE(SUM(CASE WHEN dp.type = 'mandatory' THEN t.shortfall ELSE 0 END), 0) AS mandatory,
-                COALESCE(SUM(CASE WHEN dp.type = 'mandatory' THEN 0 ELSE t.shortfall END), 0) AS optional
-             FROM (
-                SELECT d.demand_purpose_id, GREATEST(d.amount - COALESCE(r.paid, 0), 0) AS shortfall
-                FROM demands d
-                LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
-                    ON r.demand_id = d.id
-                WHERE d.association_id = ? AND d.status IN ('pending', 'partial')
-             ) t
-             LEFT JOIN demand_purposes dp ON dp.id = t.demand_purpose_id",
-            [$assocId, $assocId]
-        );
-        $stats['outstanding_mandatory'] = (float) ($split['mandatory'] ?? 0);
-        $stats['outstanding_optional'] = (float) ($split['optional'] ?? 0);
-        $stats['outstanding'] = $stats['outstanding_mandatory'] + $stats['outstanding_optional'];
-
-        // Outstanding "Subscription" dues specifically (the Subscription purpose).
-        $stats['subscription_dues'] = (float) $db->fetchColumn(
-            "SELECT COALESCE(SUM(GREATEST(d.amount - COALESCE(r.paid, 0), 0)), 0)
-             FROM demands d
-             LEFT JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
-             LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
-                 ON r.demand_id = d.id
-             WHERE d.association_id = ? AND d.status IN ('pending', 'partial') AND dp.name = 'Subscription'",
-            [$assocId, $assocId]
-        );
-
-        // Active-member count broken down by member type.
+        // Active-member count broken down by member type (current totals).
         $memberTypeCounts = $db->fetchAll(
             "SELECT COALESCE(mt.name, 'Unspecified') AS type, COUNT(*) AS count
              FROM members m
@@ -72,7 +61,15 @@ final class DashboardController extends Controller
             [$assocId]
         );
 
-        // Project type-wise: count, total target and total collected.
+        // Project type-wise: count, total target and collected (collected FY-scoped).
+        $collectedSub = 'SELECT project_id, SUM(amount) AS collected FROM receipts WHERE association_id = ?';
+        $ptParams = [$assocId];
+        if ($inRange) {
+            $collectedSub .= ' AND received_on BETWEEN ? AND ?';
+            array_push($ptParams, $from, $to);
+        }
+        $collectedSub .= ' GROUP BY project_id';
+        $ptParams[] = $assocId;
         $projectTypeSummary = $db->fetchAll(
             "SELECT COALESCE(pt.name, 'Unspecified') AS type,
                     COUNT(*) AS count,
@@ -80,22 +77,79 @@ final class DashboardController extends Controller
                     COALESCE(SUM(rc.collected), 0) AS collected
              FROM projects p
              LEFT JOIN project_types pt ON pt.id = p.project_type_id
-             LEFT JOIN (SELECT project_id, SUM(amount) AS collected FROM receipts WHERE association_id = ? GROUP BY project_id) rc
-                 ON rc.project_id = p.id
+             LEFT JOIN ({$collectedSub}) rc ON rc.project_id = p.id
              WHERE p.association_id = ?
              GROUP BY p.project_type_id, pt.name
              ORDER BY count DESC, type ASC",
-            [$assocId, $assocId]
+            $ptParams
         );
 
-        $recentReceipts = (new Receipt())->paginateForAssociation($assocId, 1, 5)['data'];
+        $recentReceipts = (new Receipt())->paginateForAssociation($assocId, 1, 5, '', '', $from, $to)['data'];
 
         $this->view('dashboard.index', [
             'title'              => 'Dashboard',
             'stats'              => $stats,
+            'subscription'       => (new Demand())->subscriptionSummary($assocId, $from, $to),
             'memberTypeCounts'   => $memberTypeCounts,
             'projectTypeSummary' => $projectTypeSummary,
             'recentReceipts'     => $recentReceipts,
+            'financialYears'     => $financialYears,
+            'selectedFy'         => $selectedFy,
+            'fyParam'            => $fyParam,
         ]);
+    }
+
+    /**
+     * Subscription drill-down: total / received / outstanding lists on one page.
+     */
+    public function subscriptions(Request $request): void
+    {
+        $assocId = Auth::associationId();
+        $this->authorizeAssociation($assocId);
+
+        $view = (string) $request->input('view', 'total');
+        if (!in_array($view, ['total', 'received', 'outstanding'], true)) {
+            $view = 'total';
+        }
+        [$financialYears, $selectedFy, $fyParam] = $this->resolveFinancialYear($request, $assocId);
+        $from = $selectedFy['start_date'] ?? null;
+        $to = $selectedFy['end_date'] ?? null;
+
+        $this->view('dashboard.subscriptions', [
+            'title'          => 'Subscriptions',
+            'view'           => $view,
+            'summary'        => (new Demand())->subscriptionSummary($assocId, $from, $to),
+            'rows'           => (new Demand())->subscriptionList($assocId, $view, $from, $to),
+            'financialYears' => $financialYears,
+            'selectedFy'     => $selectedFy,
+            'fyParam'        => $fyParam,
+        ]);
+    }
+
+    /**
+     * Resolve the selected financial year (default: current). Mirrors the dues
+     * list. Returns [financialYears, selectedFy|null, fyParam].
+     *
+     * @return array{0:list<array<string,mixed>>,1:array<string,mixed>|null,2:mixed}
+     */
+    private function resolveFinancialYear(Request $request, int $assocId): array
+    {
+        $fyModel = new FinancialYear();
+        $financialYears = $fyModel->allForAssociationOrdered($assocId);
+        $fyParam = $request->input('fy');
+        $selectedFy = null;
+        if ($fyParam === 'all') {
+            $selectedFy = null;
+        } elseif ($fyParam !== null && $fyParam !== '') {
+            foreach ($financialYears as $fy) {
+                if ((int) $fy['id'] === (int) $fyParam) {
+                    $selectedFy = $fy;
+                    break;
+                }
+            }
+        } else {
+            $selectedFy = $fyModel->current($assocId);
+        }
+        return [$financialYears, $selectedFy, $fyParam];
     }
 }

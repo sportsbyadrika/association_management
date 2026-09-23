@@ -1,7 +1,8 @@
 <?php $this->layout('layouts.app');
 /** @var list $demands */ /** @var array $paginator */ /** @var list $financialYears */
-/** @var array|null $selectedFy */ /** @var string $search */ /** @var mixed $fyParam */
+/** @var array|null $selectedFy */ /** @var string $search */ /** @var mixed $fyParam */ /** @var string $category */
 $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (string) ($selectedFy['id'] ?? '');
+$category = $category ?? '';
 ?>
 
 <div class="mb-6 flex items-center justify-between">
@@ -18,6 +19,15 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
             <div class="flex-1 min-w-[16rem]">
                 <label for="q" class="form-label">Search</label>
                 <input type="text" id="q" name="q" value="<?= e($search) ?>" placeholder="Member no, name or mobile…" class="form-input">
+            </div>
+            <div>
+                <label for="category" class="form-label">Category</label>
+                <select id="category" name="category" class="form-select">
+                    <option value="">All categories</option>
+                    <?php foreach (['subscription' => 'Subscription', 'project' => 'Project', 'gift' => 'Gift', 'event' => 'Event'] as $k => $lbl): ?>
+                        <option value="<?= $k ?>" <?= $category === $k ? 'selected' : '' ?>><?= $lbl ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div>
                 <label for="fy" class="form-label">Financial year</label>
@@ -84,13 +94,16 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
                             <span class="text-gray-300">·</span>
                         <?php endif; ?>
                         <?php if ($d['status'] !== 'cancelled'): ?>
-                            <form method="post" action="<?= e(url('/demands/' . $d['id'] . '/delete')) ?>" class="inline" data-confirm="Cancel this demand?">
+                            <form method="post" action="<?= e(url('/demands/' . $d['id'] . '/delete')) ?>" class="inline" data-confirm="Cancel this due?">
                                 <?= csrf_field() ?>
-                                <button type="submit" class="text-red-600 hover:underline">Cancel</button>
+                                <button type="submit" class="text-amber-600 hover:underline">Cancel</button>
                             </form>
-                        <?php else: ?>
-                            <span class="text-gray-300">—</span>
+                            <span class="text-gray-300">·</span>
                         <?php endif; ?>
+                        <form method="post" action="<?= e(url('/demands/' . $d['id'] . '/hard-delete')) ?>" class="inline" data-confirm="Permanently delete this due? Any receipts recorded against it are kept but unlinked. This cannot be undone.">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="text-red-600 hover:underline">Delete</button>
+                        </form>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -103,7 +116,7 @@ $currentFyValue = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (st
     <div class="p-4">
         <?php
         $fyQ = $fyParam !== null && $fyParam !== '' ? (string) $fyParam : (string) ($selectedFy['id'] ?? '');
-        $baseUrl = url('/demands?q=' . urlencode($search) . '&fy=' . urlencode($fyQ));
+        $baseUrl = url('/demands?q=' . urlencode($search) . '&category=' . urlencode($category) . '&fy=' . urlencode($fyQ));
         include dirname(__DIR__) . '/partials/pagination.php';
         ?>
     </div>

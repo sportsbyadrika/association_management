@@ -54,6 +54,9 @@ $router->group(['auth' => true], function ($router): void {
     $router->get('/dashboard', [DashboardController::class, 'index'], [
         'roles' => ['association_admin', 'association_staff', 'official'],
     ]);
+    $router->get('/dashboard/subscriptions', [DashboardController::class, 'subscriptions'], [
+        'roles' => ['association_admin', 'association_staff', 'official'],
+    ]);
 
     // Profile + self password change (all roles).
     $router->get('/profile', [ProfileController::class, 'show']);
@@ -140,6 +143,7 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->post('/demands/{id}/mark-paid', [DemandController::class, 'markPaid']);
     $router->post('/demands/{id}/reopen', [DemandController::class, 'reopen']);
     $router->post('/demands/{id}/delete', [DemandController::class, 'destroy']);
+    $router->post('/demands/{id}/hard-delete', [DemandController::class, 'hardDestroy']);
 
     // Receipts
     $router->get('/receipts', [ReceiptController::class, 'index']);

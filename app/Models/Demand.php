@@ -18,7 +18,7 @@ final class Demand extends Model
     /**
      * @return array{data:list<array<string,mixed>>,total:int,page:int,perPage:int,pages:int}
      */
-    public function paginateForAssociation(int $associationId, string $search = '', ?string $fyStart = null, ?string $fyEnd = null, int $page = 1, int $perPage = 20): array
+    public function paginateForAssociation(int $associationId, string $search = '', ?string $fyStart = null, ?string $fyEnd = null, int $page = 1, int $perPage = 20, string $category = ''): array
     {
         $where = 'WHERE d.association_id = ?';
         $params = [$associationId];
@@ -32,6 +32,16 @@ final class Demand extends Model
             // Filter by the demand's due date, falling back to when it was raised.
             $where .= ' AND COALESCE(d.due_date, DATE(d.created_at)) BETWEEN ? AND ?';
             array_push($params, $fyStart, $fyEnd);
+        }
+        // Filter by "due for" category (derived from the activity link).
+        if ($category === 'subscription') {
+            $where .= ' AND d.project_id IS NULL AND d.gift_id IS NULL AND d.event_id IS NULL';
+        } elseif ($category === 'project') {
+            $where .= ' AND d.project_id IS NOT NULL';
+        } elseif ($category === 'gift') {
+            $where .= ' AND d.gift_id IS NOT NULL';
+        } elseif ($category === 'event') {
+            $where .= ' AND d.event_id IS NOT NULL';
         }
 
         $base = "SELECT d.*, m.name AS member_name, m.member_number, m.mobile, p.name AS project_name,
@@ -185,6 +195,71 @@ final class Demand extends Model
      * paid (fully covered), partial (some paid) or pending (none).
      * Cancelled demands are left untouched.
      */
+    /**
+     * Subscription totals for the dashboard cards: total dues, amount received
+     * and amount outstanding, each with a count.
+     * @return array<string,float>
+     */
+    public function subscriptionSummary(int $associationId, ?string $from = null, ?string $to = null): array
+    {
+        $range = '';
+        $params = [$associationId, $associationId];
+        if ($from !== null && $to !== null) {
+            $range = ' AND COALESCE(d.due_date, DATE(d.created_at)) BETWEEN ? AND ?';
+            array_push($params, $from, $to);
+        }
+        $row = $this->db->fetch(
+            "SELECT
+                COUNT(*) AS total_count,
+                COALESCE(SUM(d.amount), 0) AS total_amount,
+                COALESCE(SUM(LEAST(d.amount, COALESCE(r.paid, 0))), 0) AS received_amount,
+                COALESCE(SUM(CASE WHEN COALESCE(r.paid, 0) > 0 THEN 1 ELSE 0 END), 0) AS received_count,
+                COALESCE(SUM(GREATEST(d.amount - COALESCE(r.paid, 0), 0)), 0) AS outstanding_amount,
+                COALESCE(SUM(CASE WHEN d.amount - COALESCE(r.paid, 0) > 0.005 THEN 1 ELSE 0 END), 0) AS outstanding_count
+             FROM demands d
+             JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
+             LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
+                 ON r.demand_id = d.id
+             WHERE d.association_id = ? AND d.status <> 'cancelled' AND dp.name = 'Subscription'{$range}",
+            $params
+        );
+        return array_map(static fn ($v) => (float) $v, $row ?? []);
+    }
+
+    /**
+     * Subscription dues for the drill-down list, filtered by view:
+     * 'total' (all), 'received' (paid > 0), 'outstanding' (balance > 0).
+     * @return list<array<string,mixed>>
+     */
+    public function subscriptionList(int $associationId, string $view = 'total', ?string $from = null, ?string $to = null): array
+    {
+        $having = match ($view) {
+            'received'    => ' AND COALESCE(r.paid, 0) > 0',
+            'outstanding' => ' AND d.amount - COALESCE(r.paid, 0) > 0.005',
+            default       => '',
+        };
+        $params = [$associationId, $associationId];
+        $range = '';
+        if ($from !== null && $to !== null) {
+            $range = ' AND COALESCE(d.due_date, DATE(d.created_at)) BETWEEN ? AND ?';
+            array_push($params, $from, $to);
+        }
+        return $this->db->fetchAll(
+            "SELECT d.id, d.amount, d.due_date, d.status, d.member_id,
+                    m.name AS member_name, m.member_number,
+                    COALESCE(r.paid, 0) AS paid,
+                    GREATEST(d.amount - COALESCE(r.paid, 0), 0) AS balance
+             FROM demands d
+             JOIN members m ON m.id = d.member_id
+             JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
+             LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
+                 ON r.demand_id = d.id
+             WHERE d.association_id = ? AND d.status <> 'cancelled' AND dp.name = 'Subscription'{$range}{$having}
+             ORDER BY m.name ASC, d.id ASC",
+            $params
+        );
+    }
+
     public function syncStatus(int $demandId): void
     {
         $demand = $this->find($demandId);
