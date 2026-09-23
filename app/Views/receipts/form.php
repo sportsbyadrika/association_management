@@ -119,6 +119,7 @@ $selCat = static fn ($c) => $curCat === $c ? 'selected' : '';
                 <select id="mode" name="mode" class="form-select" onchange="document.getElementById('bankWrap').style.opacity = this.value==='fund_transfer'?'1':'0.6'">
                     <option value="cash" <?= $selMode('cash') ?>>Cash</option>
                     <option value="fund_transfer" <?= $selMode('fund_transfer') ?>>Fund transfer</option>
+                    <option value="adjustment" <?= $selMode('adjustment') ?>>Adjustment</option>
                 </select>
             </div>
             <div id="bankWrap">
