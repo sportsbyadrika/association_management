@@ -27,18 +27,25 @@ final class ReceiptController extends Controller
         $assocId = Auth::associationId();
         $page = (int) $request->input('page', 1);
         $search = trim((string) $request->input('q', ''));
-        $projectFilter = (string) $request->input('project_id', '');
+        $category = (string) $request->input('category', '');
+        if (!in_array($category, ['general', 'project', 'gift', 'event'], true)) {
+            $category = '';
+        }
+        $activity = (string) $request->input('activity', '');
         [$from, $to] = $this->filterDates($request);
 
-        $result = (new Receipt())->paginateForAssociation($assocId, $page, 20, $search, $projectFilter, $from, $to);
+        $result = (new Receipt())->paginateForAssociation($assocId, $page, 20, $search, $category, $from, $to, $activity);
 
         $this->view('receipts.index', [
             'title'         => 'Receipts',
             'receipts'      => $result['data'],
             'paginator'     => $result,
             'projects'      => (new Project())->options($assocId),
+            'gifts'         => (new Gift())->options($assocId),
+            'events'        => (new Event())->options($assocId),
             'search'        => $search,
-            'projectFilter' => $projectFilter,
+            'category'      => $category,
+            'activity'      => $activity,
             'from'          => $from,
             'to'            => $to,
         ]);

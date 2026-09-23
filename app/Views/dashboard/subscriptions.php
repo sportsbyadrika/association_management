@@ -10,9 +10,9 @@ $tabs = [
     'outstanding' => ['Amount Outstanding', (float) ($summary['outstanding_amount'] ?? 0), (int) ($summary['outstanding_count'] ?? 0)],
 ];
 $statusBadge = static fn (string $s): string => [
-    'paid'    => 'bg-brand-100 text-brand-800',
-    'partial' => 'bg-blue-100 text-blue-800',
-    'pending' => 'bg-amber-100 text-amber-800',
+    'paid'    => 'bg-green-100 text-green-800',
+    'partial' => 'bg-orange-100 text-orange-800',
+    'pending' => 'bg-red-100 text-red-800',
 ][$s] ?? 'bg-gray-100 text-gray-600';
 ?>
 
@@ -24,7 +24,7 @@ $statusBadge = static fn (string $s): string => [
     </div>
     <div class="flex gap-2">
         <a href="<?= e(url('/dashboard/subscriptions?view=' . $view . $fyQ . '&format=csv')) ?>" class="btn-secondary btn-sm">CSV</a>
-        <a href="<?= e(url('/dashboard/subscriptions?view=' . $view . $fyQ . '&format=pdf')) ?>" class="btn-primary btn-sm">PDF</a>
+        <a href="<?= e(url('/dashboard/subscriptions?view=' . $view . $fyQ . '&format=pdf')) ?>" target="_blank" rel="noopener" class="btn-primary btn-sm">PDF</a>
     </div>
 </div>
 

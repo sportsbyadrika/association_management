@@ -19,15 +19,23 @@ final class Expenditure extends Model
      * @param int|string $projectFilter '' = all, 'none' = general (no project), or a project id
      * @return array{data:list<array<string,mixed>>,total:int,page:int,perPage:int,pages:int}
      */
-    public function paginateForAssociation(int $associationId, int $page = 1, int $perPage = 20, int|string $projectFilter = '', ?string $from = null, ?string $to = null): array
+    public function paginateForAssociation(int $associationId, int $page = 1, int $perPage = 20, string $category = '', ?string $from = null, ?string $to = null, string $activity = ''): array
     {
         $where = 'WHERE e.association_id = ?';
         $params = [$associationId];
-        if ($projectFilter === 'none') {
-            $where .= ' AND e.project_id IS NULL';
-        } elseif ($projectFilter !== '' && (int) $projectFilter > 0) {
-            $where .= ' AND e.project_id = ?';
-            $params[] = (int) $projectFilter;
+        // Category filter (association / project / gift / event).
+        if (in_array($category, ['association', 'project', 'gift', 'event'], true)) {
+            $where .= ' AND e.category = ?';
+            $params[] = $category;
+        }
+        // Specific activity filter, "type:id".
+        if ($activity !== '' && str_contains($activity, ':')) {
+            [$t, $aid] = explode(':', $activity, 2);
+            $col = ['project' => 'project_id', 'gift' => 'gift_id', 'event' => 'event_id'][$t] ?? null;
+            if ($col !== null && (int) $aid > 0) {
+                $where .= " AND e.{$col} = ?";
+                $params[] = (int) $aid;
+            }
         }
         if ($from !== null && $from !== '') {
             $where .= ' AND e.paid_on >= ?';

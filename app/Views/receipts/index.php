@@ -1,36 +1,65 @@
 <?php $this->layout('layouts.app');
 /** @var list $receipts */ /** @var array $paginator */
-/** @var list $projects */ /** @var string $search */ /** @var string $projectFilter */ /** @var ?string $from */ /** @var ?string $to */
-$hasFilter = $search !== '' || $projectFilter !== '' || $from || $to;
+/** @var list $projects */ /** @var list $gifts */ /** @var list $events */
+/** @var string $search */ /** @var string $category */ /** @var string $activity */ /** @var ?string $from */ /** @var ?string $to */
+$hasFilter = $search !== '' || $category !== '' || $activity !== '' || $from || $to;
 $filterQs = http_build_query(array_filter([
-    'q'          => $search,
-    'project_id' => $projectFilter,
-    'from'       => $from,
-    'to'         => $to,
+    'q'        => $search,
+    'category' => $category,
+    'activity' => $activity,
+    'from'     => $from,
+    'to'       => $to,
 ]));
+$catOptions = ['general' => 'General / Subscription', 'project' => 'Project', 'gift' => 'Gift', 'event' => 'Event'];
 ?>
 
 <div class="mb-6 flex items-center justify-between">
     <div>
         <h1 class="text-2xl font-bold text-gray-900">Receipts</h1>
-        <p class="mt-1 text-sm text-gray-500">Money received from members and projects.</p>
+        <p class="mt-1 text-sm text-gray-500">Money received from members and activities.</p>
     </div>
     <a href="<?= e(url('/receipts/create')) ?>" class="btn-primary">+ Record Receipt</a>
 </div>
 
-<form method="get" action="<?= e(url('/receipts')) ?>" class="card card-body mb-6 grid grid-cols-1 gap-3 sm:grid-cols-5 sm:items-end">
+<form method="get" action="<?= e(url('/receipts')) ?>" class="card card-body mb-6 grid grid-cols-1 gap-3 sm:grid-cols-6 sm:items-end">
     <div class="sm:col-span-2">
         <label for="q" class="form-label">Member</label>
         <input type="text" id="q" name="q" value="<?= e($search) ?>" placeholder="Member name or number…" class="form-input w-full">
     </div>
     <div>
-        <label for="project_id" class="form-label">Project</label>
-        <select id="project_id" name="project_id" class="form-select w-full">
+        <label for="category" class="form-label">Category</label>
+        <select id="category" name="category" class="form-select w-full">
             <option value="">All</option>
-            <option value="none" <?= $projectFilter === 'none' ? 'selected' : '' ?>>General / subscription</option>
-            <?php foreach ($projects as $p): ?>
-                <option value="<?= (int) $p['id'] ?>" <?= $projectFilter === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
+            <?php foreach ($catOptions as $k => $lbl): ?>
+                <option value="<?= $k ?>" <?= $category === $k ? 'selected' : '' ?>><?= e($lbl) ?></option>
             <?php endforeach; ?>
+        </select>
+    </div>
+    <div>
+        <label for="activity" class="form-label">Activity</label>
+        <select id="activity" name="activity" class="form-select w-full">
+            <option value="">All activities</option>
+            <?php if ($projects !== []): ?>
+                <optgroup label="Projects">
+                    <?php foreach ($projects as $p): ?>
+                        <option value="project:<?= (int) $p['id'] ?>" <?= $activity === 'project:' . $p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
+                    <?php endforeach; ?>
+                </optgroup>
+            <?php endif; ?>
+            <?php if ($gifts !== []): ?>
+                <optgroup label="Gifts">
+                    <?php foreach ($gifts as $g): ?>
+                        <option value="gift:<?= (int) $g['id'] ?>" <?= $activity === 'gift:' . $g['id'] ? 'selected' : '' ?>><?= e($g['title']) ?></option>
+                    <?php endforeach; ?>
+                </optgroup>
+            <?php endif; ?>
+            <?php if ($events !== []): ?>
+                <optgroup label="Events">
+                    <?php foreach ($events as $ev): ?>
+                        <option value="event:<?= (int) $ev['id'] ?>" <?= $activity === 'event:' . $ev['id'] ? 'selected' : '' ?>><?= e($ev['title']) ?></option>
+                    <?php endforeach; ?>
+                </optgroup>
+            <?php endif; ?>
         </select>
     </div>
     <div>
@@ -41,7 +70,7 @@ $filterQs = http_build_query(array_filter([
         <label for="to" class="form-label">To</label>
         <input type="date" id="to" name="to" value="<?= e($to ?? '') ?>" class="form-input w-full">
     </div>
-    <div class="flex gap-2 sm:col-span-5">
+    <div class="flex gap-2 sm:col-span-6">
         <button type="submit" class="btn-secondary">Filter</button>
         <?php if ($hasFilter): ?><a href="<?= e(url('/receipts')) ?>" class="btn-secondary">Clear</a><?php endif; ?>
     </div>
