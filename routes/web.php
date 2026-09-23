@@ -140,10 +140,13 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->get('/demands/create', [DemandController::class, 'create']);
     $router->post('/demands/preview', [DemandController::class, 'preview']);
     $router->post('/demands/bulk', [DemandController::class, 'bulkStore']);
+    $router->get('/demands/{id}/edit', [DemandController::class, 'edit']);
     $router->post('/demands/{id}/mark-paid', [DemandController::class, 'markPaid']);
     $router->post('/demands/{id}/reopen', [DemandController::class, 'reopen']);
     $router->post('/demands/{id}/delete', [DemandController::class, 'destroy']);
     $router->post('/demands/{id}/hard-delete', [DemandController::class, 'hardDestroy']);
+    // Single-record edit (registered after preview/bulk so it can't shadow them).
+    $router->post('/demands/{id}', [DemandController::class, 'update']);
 
     // Receipts
     $router->get('/receipts', [ReceiptController::class, 'index']);

@@ -80,6 +80,10 @@ $category = $category ?? '';
                         <span class="badge <?= $badge ?> capitalize"><?= e($d['status']) ?></span>
                     </td>
                     <td class="text-right">
+                        <?php if ($d['status'] !== 'cancelled'): ?>
+                            <a href="<?= e(url('/demands/' . $d['id'] . '/edit')) ?>" class="text-brand-700 hover:underline">Edit</a>
+                            <span class="text-gray-300">·</span>
+                        <?php endif; ?>
                         <?php if (in_array($d['status'], ['pending', 'partial'], true)): ?>
                             <form method="post" action="<?= e(url('/demands/' . $d['id'] . '/mark-paid')) ?>" class="inline" data-confirm="Mark this demand as paid without recording a receipt?">
                                 <?= csrf_field() ?>
