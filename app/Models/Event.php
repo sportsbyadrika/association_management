@@ -136,4 +136,39 @@ final class Event extends Model
             [$eventId]
         );
     }
+
+    /**
+     * Collections (receipts) booked to the event.
+     * @return list<array<string,mixed>>
+     */
+    public function collectionList(int $eventId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT r.received_on, r.amount, r.mode, r.remarks,
+                    ih.name AS income_head_name, m.name AS member_name
+             FROM receipts r
+             LEFT JOIN income_heads ih ON ih.id = r.income_head_id
+             LEFT JOIN members m ON m.id = r.member_id
+             WHERE r.event_id = ?
+             ORDER BY r.received_on DESC, r.id DESC",
+            [$eventId]
+        );
+    }
+
+    /**
+     * Expenditures booked to the event.
+     * @return list<array<string,mixed>>
+     */
+    public function expenditureList(int $eventId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT e.paid_on, e.amount, e.mode, e.remarks, e.category,
+                    eh.name AS head_name
+             FROM expenditures e
+             LEFT JOIN expenditure_heads eh ON eh.id = e.expenditure_head_id
+             WHERE e.event_id = ?
+             ORDER BY e.paid_on DESC, e.id DESC",
+            [$eventId]
+        );
+    }
 }

@@ -84,6 +84,8 @@ final class EventController extends Controller
             'spent'        => $model->spent((int) $event['id']),
             'collected'    => $model->collected((int) $event['id']),
             'eventMembers' => $model->members((int) $event['id']),
+            'collections'  => $model->collectionList((int) $event['id']),
+            'expenditures' => $model->expenditureList((int) $event['id']),
         ]);
     }
 
