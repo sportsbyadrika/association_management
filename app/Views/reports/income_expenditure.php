@@ -64,7 +64,7 @@ $renderStatement = static function (array $s): void {
     <div>
         <a href="<?= e(url('/reports')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Reports</a>
         <h1 class="mt-1 text-2xl font-bold text-gray-900">Income &amp; Expenditure Report</h1>
-        <p class="mt-1 text-sm text-gray-500">Income (subscription dues + activity receipts) versus expenditure, with closing balance.</p>
+        <p class="mt-1 text-sm text-gray-500">Income (received, by income head) versus expenditure (by activity), with closing balance.</p>
     </div>
     <div class="flex gap-2">
         <a href="<?= e(url('/reports/income-expenditure?' . $qs . '&tab=' . $tab . '&format=csv')) ?>" class="btn-secondary btn-sm">CSV</a>

@@ -316,12 +316,12 @@ final class ReportController extends Controller
     /**
      * Build the two-sided Income & Expenditure statement.
      *
-     * Income = subscription dues raised (unlinked demands) + actual receipts
-     * for projects / gifts / events. Expense = actual expenditures for
-     * projects / gifts / events + general (association) spending.
+     * Income = actual receipts grouped by income head. Expense = actual
+     * expenditures grouped by activity (project / gift / event) plus general
+     * (association) spending.
      *
-     * When $detailed is true each activity is broken down one level further by
-     * income / expenditure head (subscriptions by demand purpose).
+     * When $detailed is true, income heads are broken down by the linked
+     * activity and expenditure activities are broken down by expenditure head.
      *
      * @return array{income:list<array{date:string,particulars:string,amount:float}>,expense:list<array{date:string,particulars:string,amount:float}>,incomeTotal:float,expenseTotal:float,balance:float}
      */
@@ -334,82 +334,61 @@ final class ReportController extends Controller
         $rP = [];
         $eDate = '';
         $eP = [];
-        $dDate = '';
-        $dP = [];
         if ($from !== null && $from !== '') {
             $rDate .= ' AND r.received_on >= ?';
             $rP[] = $from;
             $eDate .= ' AND e.paid_on >= ?';
             $eP[] = $from;
-            $dDate .= ' AND COALESCE(d.due_date, DATE(d.created_at)) >= ?';
-            $dP[] = $from;
         }
         if ($to !== null && $to !== '') {
             $rDate .= ' AND r.received_on <= ?';
             $rP[] = $to;
             $eDate .= ' AND e.paid_on <= ?';
             $eP[] = $to;
-            $dDate .= ' AND COALESCE(d.due_date, DATE(d.created_at)) <= ?';
-            $dP[] = $to;
         }
 
         $income = [];
         $expense = [];
         $mk = static fn (string $particulars, float $amount): array => ['date' => '', 'particulars' => $particulars, 'amount' => $amount];
 
-        // ---- Income: subscription dues (unlinked, non-cancelled demands) ----
-        $subWhere = "d.association_id = ? AND d.status <> 'cancelled'
-                     AND d.project_id IS NULL AND d.gift_id IS NULL AND d.event_id IS NULL";
+        // ---- Income: actual receipts grouped by income head ----
+        // Consolidated: one line per income head. Detailed: each head broken
+        // down by the activity the receipt is linked to (or "General").
         if ($detailed) {
-            $subRows = $db->fetchAll(
-                "SELECT COALESCE(dp.name, 'Subscription') AS purpose, COALESCE(SUM(d.amount), 0) AS amt
-                 FROM demands d
-                 LEFT JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
-                 WHERE {$subWhere}{$dDate}
-                 GROUP BY d.demand_purpose_id, dp.name HAVING amt <> 0 ORDER BY dp.name",
-                array_merge([$assocId], $dP)
+            $rows = $db->fetchAll(
+                "SELECT COALESCE(ih.name, 'Other Income') AS head,
+                        CASE
+                            WHEN r.project_id IS NOT NULL THEN CONCAT('Project - ', p.name)
+                            WHEN r.gift_id IS NOT NULL THEN CONCAT('Gift - ', g.title)
+                            WHEN r.event_id IS NOT NULL THEN CONCAT('Event - ', ev.title)
+                            ELSE 'General'
+                        END AS activity,
+                        COALESCE(SUM(r.amount), 0) AS amt
+                 FROM receipts r
+                 LEFT JOIN income_heads ih ON ih.id = r.income_head_id
+                 LEFT JOIN projects p ON p.id = r.project_id
+                 LEFT JOIN gifts g ON g.id = r.gift_id
+                 LEFT JOIN events ev ON ev.id = r.event_id
+                 WHERE r.association_id = ?{$rDate}
+                 GROUP BY r.income_head_id, ih.name, r.project_id, p.name,
+                          r.gift_id, g.title, r.event_id, ev.title
+                 HAVING amt <> 0 ORDER BY head, activity",
+                array_merge([$assocId], $rP)
             );
-            foreach ($subRows as $s) {
-                $income[] = $mk('Membership Subscriptions Due — ' . (string) $s['purpose'], (float) $s['amt']);
+            foreach ($rows as $row) {
+                $income[] = $mk($row['head'] . ' — ' . $row['activity'], (float) $row['amt']);
             }
         } else {
-            $sub = (float) $db->fetchColumn(
-                "SELECT COALESCE(SUM(d.amount), 0) FROM demands d WHERE {$subWhere}{$dDate}",
-                array_merge([$assocId], $dP)
+            $rows = $db->fetchAll(
+                "SELECT COALESCE(ih.name, 'Other Income') AS head, COALESCE(SUM(r.amount), 0) AS amt
+                 FROM receipts r
+                 LEFT JOIN income_heads ih ON ih.id = r.income_head_id
+                 WHERE r.association_id = ?{$rDate}
+                 GROUP BY r.income_head_id, ih.name HAVING amt <> 0 ORDER BY head",
+                array_merge([$assocId], $rP)
             );
-            if ($sub != 0.0) {
-                $income[] = $mk('Membership Subscriptions Due', $sub);
-            }
-        }
-
-        // ---- Income: receipts per project / gift / event ----
-        foreach ([
-            ['projects', 'p', 'name', 'r.project_id', 'Project'],
-            ['gifts', 'g', 'title', 'r.gift_id', 'Gift'],
-            ['events', 'ev', 'title', 'r.event_id', 'Event'],
-        ] as [$table, $al, $nameCol, $link, $label]) {
-            if ($detailed) {
-                $q = "SELECT {$al}.{$nameCol} AS activity, COALESCE(ih.name, 'Unspecified') AS head,
-                             COALESCE(SUM(r.amount), 0) AS amt
-                      FROM receipts r
-                      JOIN {$table} {$al} ON {$al}.id = {$link}
-                      LEFT JOIN income_heads ih ON ih.id = r.income_head_id
-                      WHERE r.association_id = ? AND {$link} IS NOT NULL{$rDate}
-                      GROUP BY {$link}, {$al}.{$nameCol}, r.income_head_id, ih.name
-                      HAVING amt <> 0 ORDER BY {$al}.{$nameCol}, head";
-                foreach ($db->fetchAll($q, array_merge([$assocId], $rP)) as $row) {
-                    $income[] = $mk($label . ' - ' . $row['activity'] . ' - ' . $row['head'], (float) $row['amt']);
-                }
-            } else {
-                $q = "SELECT {$al}.{$nameCol} AS activity, COALESCE(SUM(r.amount), 0) AS amt
-                      FROM receipts r
-                      JOIN {$table} {$al} ON {$al}.id = {$link}
-                      WHERE r.association_id = ? AND {$link} IS NOT NULL{$rDate}
-                      GROUP BY {$link}, {$al}.{$nameCol}
-                      HAVING amt <> 0 ORDER BY {$al}.{$nameCol}";
-                foreach ($db->fetchAll($q, array_merge([$assocId], $rP)) as $row) {
-                    $income[] = $mk($label . ' - ' . $row['activity'], (float) $row['amt']);
-                }
+            foreach ($rows as $row) {
+                $income[] = $mk((string) $row['head'], (float) $row['amt']);
             }
         }
 
