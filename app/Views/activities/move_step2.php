@@ -31,6 +31,12 @@ $toL = ActivityMover::label($to);
                     <span><strong><?= (int) $impact['contrib_count'] ?></strong> member contribution(s) carried over.</span>
                 </li>
             <?php endif; ?>
+            <?php if ($from === 'project' && in_array($to, ['gift', 'event'], true) && (int) $impact['receipts_count'] > 0): ?>
+                <li class="flex items-center gap-2">
+                    <span class="text-brand-600">✓</span>
+                    <span>Each member's collected receipts become a contribution under “Related members &amp; contributions”.</span>
+                </li>
+            <?php endif; ?>
         </ul>
 
         <?php
