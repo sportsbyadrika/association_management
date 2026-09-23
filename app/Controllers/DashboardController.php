@@ -156,7 +156,21 @@ final class DashboardController extends Controller
             ];
             $filename = 'subscriptions-' . $view;
             if ($format === 'pdf') {
-                $this->pdf()->stream($filename, 'Subscriptions — ' . $labels[$view], $columns, $data, $meta, $summaryLines);
+                // Open a print-preview page (new tab) with Close + Save-as-PDF,
+                // reusing the standard report styling.
+                $html = $this->pdf()->buildHtml('Subscriptions — ' . $labels[$view], $columns, $data, $meta, $summaryLines);
+                $toolbar = '<div class="noprint" style="position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #e5e7eb;padding:10px 16px;text-align:right">'
+                    . '<button type="button" onclick="window.print()" style="background:#047857;color:#fff;border:0;border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer">Print / Save as PDF</button> '
+                    . '<button type="button" onclick="window.close()" style="background:#e5e7eb;color:#111827;border:0;border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer;margin-left:6px">Close</button>'
+                    . '</div>';
+                $html = str_replace('</style>', ' @media print { .noprint { display: none !important; } } </style>', $html);
+                $html = preg_replace('/<body>/', '<body>' . $toolbar, $html, 1);
+                while (ob_get_level() > 0) {
+                    ob_end_clean();
+                }
+                header('Content-Type: text/html; charset=UTF-8');
+                echo $html;
+                exit;
             }
             CsvExporter::download($filename, $columns, $data);
         }

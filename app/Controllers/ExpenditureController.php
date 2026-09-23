@@ -24,17 +24,24 @@ final class ExpenditureController extends Controller
         $assocId = Auth::associationId();
         $page = (int) $request->input('page', 1);
 
-        $projectFilter = (string) $request->input('project_id', '');
+        $category = (string) $request->input('category', '');
+        if (!in_array($category, ['association', 'project', 'gift', 'event'], true)) {
+            $category = '';
+        }
+        $activity = (string) $request->input('activity', '');
         [$from, $to] = $this->filterDates($request);
 
-        $result = (new Expenditure())->paginateForAssociation($assocId, $page, 20, $projectFilter, $from, $to);
+        $result = (new Expenditure())->paginateForAssociation($assocId, $page, 20, $category, $from, $to, $activity);
 
         $this->view('expenditures.index', [
             'title'         => 'Expenditure',
             'expenditures'  => $result['data'],
             'paginator'     => $result,
             'projects'      => (new Project())->options($assocId),
-            'projectFilter' => $projectFilter,
+            'gifts'         => (new Gift())->options($assocId),
+            'events'        => (new Event())->options($assocId),
+            'category'      => $category,
+            'activity'      => $activity,
             'from'          => $from,
             'to'            => $to,
         ]);

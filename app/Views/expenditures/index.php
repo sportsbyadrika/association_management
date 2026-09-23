@@ -1,12 +1,15 @@
 <?php $this->layout('layouts.app');
 /** @var list $expenditures */ /** @var array $paginator */
-/** @var list $projects */ /** @var string $projectFilter */ /** @var ?string $from */ /** @var ?string $to */
-$hasFilter = $projectFilter !== '' || $from || $to;
+/** @var list $projects */ /** @var list $gifts */ /** @var list $events */
+/** @var string $category */ /** @var string $activity */ /** @var ?string $from */ /** @var ?string $to */
+$hasFilter = $category !== '' || $activity !== '' || $from || $to;
 $filterQs = http_build_query(array_filter([
-    'project_id' => $projectFilter,
-    'from'       => $from,
-    'to'         => $to,
+    'category' => $category,
+    'activity' => $activity,
+    'from'     => $from,
+    'to'       => $to,
 ]));
+$catOptions = ['association' => 'Association (General)', 'project' => 'Project', 'gift' => 'Gift', 'event' => 'Event'];
 ?>
 
 <div class="mb-6 flex items-center justify-between">
@@ -17,15 +20,41 @@ $filterQs = http_build_query(array_filter([
     <a href="<?= e(url('/expenditures/create')) ?>" class="btn-primary">+ Record Expenditure</a>
 </div>
 
-<form method="get" action="<?= e(url('/expenditures')) ?>" class="card card-body mb-6 grid grid-cols-1 gap-3 sm:grid-cols-4 sm:items-end">
+<form method="get" action="<?= e(url('/expenditures')) ?>" class="card card-body mb-6 grid grid-cols-1 gap-3 sm:grid-cols-5 sm:items-end">
     <div>
-        <label for="project_id" class="form-label">Project</label>
-        <select id="project_id" name="project_id" class="form-select w-full">
+        <label for="category" class="form-label">Category</label>
+        <select id="category" name="category" class="form-select w-full">
             <option value="">All expenditure</option>
-            <option value="none" <?= $projectFilter === 'none' ? 'selected' : '' ?>>Association (general)</option>
-            <?php foreach ($projects as $p): ?>
-                <option value="<?= (int) $p['id'] ?>" <?= $projectFilter === (string) $p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
+            <?php foreach ($catOptions as $k => $lbl): ?>
+                <option value="<?= $k ?>" <?= $category === $k ? 'selected' : '' ?>><?= e($lbl) ?></option>
             <?php endforeach; ?>
+        </select>
+    </div>
+    <div>
+        <label for="activity" class="form-label">Activity</label>
+        <select id="activity" name="activity" class="form-select w-full">
+            <option value="">All activities</option>
+            <?php if ($projects !== []): ?>
+                <optgroup label="Projects">
+                    <?php foreach ($projects as $p): ?>
+                        <option value="project:<?= (int) $p['id'] ?>" <?= $activity === 'project:' . $p['id'] ? 'selected' : '' ?>><?= e($p['name']) ?></option>
+                    <?php endforeach; ?>
+                </optgroup>
+            <?php endif; ?>
+            <?php if ($gifts !== []): ?>
+                <optgroup label="Gifts">
+                    <?php foreach ($gifts as $g): ?>
+                        <option value="gift:<?= (int) $g['id'] ?>" <?= $activity === 'gift:' . $g['id'] ? 'selected' : '' ?>><?= e($g['title']) ?></option>
+                    <?php endforeach; ?>
+                </optgroup>
+            <?php endif; ?>
+            <?php if ($events !== []): ?>
+                <optgroup label="Events">
+                    <?php foreach ($events as $ev): ?>
+                        <option value="event:<?= (int) $ev['id'] ?>" <?= $activity === 'event:' . $ev['id'] ? 'selected' : '' ?>><?= e($ev['title']) ?></option>
+                    <?php endforeach; ?>
+                </optgroup>
+            <?php endif; ?>
         </select>
     </div>
     <div>

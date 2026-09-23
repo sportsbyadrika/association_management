@@ -20,7 +20,7 @@ final class Receipt extends Model
      * @param int|string $projectFilter '' = all, 'none' = no project, or a project id
      * @return array{data:list<array<string,mixed>>,total:int,page:int,perPage:int,pages:int}
      */
-    public function paginateForAssociation(int $associationId, int $page = 1, int $perPage = 20, string $search = '', int|string $projectFilter = '', ?string $from = null, ?string $to = null): array
+    public function paginateForAssociation(int $associationId, int $page = 1, int $perPage = 20, string $search = '', string $category = '', ?string $from = null, ?string $to = null, string $activity = ''): array
     {
         $where = 'WHERE r.association_id = ?';
         $params = [$associationId];
@@ -29,11 +29,19 @@ final class Receipt extends Model
             $like = '%' . $search . '%';
             array_push($params, $like, $like);
         }
-        if ($projectFilter === 'none') {
-            $where .= ' AND r.project_id IS NULL';
-        } elseif ($projectFilter !== '' && (int) $projectFilter > 0) {
-            $where .= ' AND r.project_id = ?';
-            $params[] = (int) $projectFilter;
+        // Category filter (general / project / gift / event).
+        if (in_array($category, ['general', 'project', 'gift', 'event'], true)) {
+            $where .= ' AND r.category = ?';
+            $params[] = $category;
+        }
+        // Specific activity filter, "type:id" (project:5 / gift:3 / event:2).
+        if ($activity !== '' && str_contains($activity, ':')) {
+            [$t, $aid] = explode(':', $activity, 2);
+            $col = ['project' => 'project_id', 'gift' => 'gift_id', 'event' => 'event_id'][$t] ?? null;
+            if ($col !== null && (int) $aid > 0) {
+                $where .= " AND r.{$col} = ?";
+                $params[] = (int) $aid;
+            }
         }
         if ($from !== null && $from !== '') {
             $where .= ' AND r.received_on >= ?';
