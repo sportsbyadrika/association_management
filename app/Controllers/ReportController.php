@@ -215,10 +215,10 @@ final class ReportController extends Controller
 
         $format = (string) $request->input('format', '');
         if ($format === 'csv' || $format === 'pdf') {
-            $columns = ['Date', 'Member', 'Income Head', 'Project', 'Mode', 'Amount'];
+            $columns = ['Date', 'Member', 'Income Head', 'Activity', 'Mode', 'Amount'];
             $data = array_map(static fn ($r) => [
                 format_date($r['received_on']), $r['member_name'] ?? '', $r['income_head_name'] ?? '',
-                $r['project_name'] ?? 'General', str_replace('_', ' ', (string) $r['mode']),
+                $r['activity'] ?? 'General / Subscription', str_replace('_', ' ', (string) $r['mode']),
                 number_format((float) $r['amount'], 2),
             ], $detail);
             $meta = $this->rangeMeta($from, $to);

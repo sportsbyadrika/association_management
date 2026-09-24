@@ -110,12 +110,23 @@ final class Receipt extends Model
              ORDER BY total DESC",
             $params
         );
-        $byProject = $this->db->fetchAll(
-            "SELECT COALESCE(p.name, 'General / Subscription') AS project, COUNT(*) AS count, COALESCE(SUM(r.amount),0) AS total
+        // Group by the linked activity (project / gift / event) by name, so gift
+        // and event contributions show on their own line instead of being hidden
+        // inside "General / Subscription".
+        $byActivity = $this->db->fetchAll(
+            "SELECT CASE
+                        WHEN r.project_id IS NOT NULL THEN CONCAT('Project - ', COALESCE(p.name, '(deleted)'))
+                        WHEN r.gift_id IS NOT NULL THEN CONCAT('Gift - ', COALESCE(g.title, '(deleted)'))
+                        WHEN r.event_id IS NOT NULL THEN CONCAT('Event - ', COALESCE(ev.title, '(deleted)'))
+                        ELSE 'General / Subscription'
+                    END AS activity,
+                    COUNT(*) AS count, COALESCE(SUM(r.amount),0) AS total
              FROM receipts r
              LEFT JOIN projects p ON p.id = r.project_id
+             LEFT JOIN gifts g ON g.id = r.gift_id
+             LEFT JOIN events ev ON ev.id = r.event_id
              WHERE r.association_id = ? {$dateWhere}
-             GROUP BY r.project_id, p.name
+             GROUP BY r.project_id, p.name, r.gift_id, g.title, r.event_id, ev.title
              ORDER BY total DESC",
             $params
         );
@@ -123,7 +134,7 @@ final class Receipt extends Model
             "SELECT COALESCE(SUM(amount),0) FROM receipts r WHERE r.association_id = ? {$dateWhere}",
             $params
         );
-        return ['by_head' => $byHead, 'by_project' => $byProject, 'total' => $total];
+        return ['by_head' => $byHead, 'by_activity' => $byActivity, 'total' => $total];
     }
 
     /** @return list<array<string,mixed>> detailed receipts for report/CSV */
@@ -133,11 +144,20 @@ final class Receipt extends Model
         $params = array_merge([$associationId], $params);
         return $this->db->fetchAll(
             "SELECT r.received_on, m.name AS member_name, ih.name AS income_head_name,
-                    p.name AS project_name, r.mode, r.amount, r.remarks
+                    p.name AS project_name,
+                    CASE
+                        WHEN r.project_id IS NOT NULL THEN CONCAT('Project - ', COALESCE(p.name, '(deleted)'))
+                        WHEN r.gift_id IS NOT NULL THEN CONCAT('Gift - ', COALESCE(g.title, '(deleted)'))
+                        WHEN r.event_id IS NOT NULL THEN CONCAT('Event - ', COALESCE(ev.title, '(deleted)'))
+                        ELSE 'General / Subscription'
+                    END AS activity,
+                    r.mode, r.amount, r.remarks
              FROM receipts r
              LEFT JOIN members m ON m.id = r.member_id
              LEFT JOIN income_heads ih ON ih.id = r.income_head_id
              LEFT JOIN projects p ON p.id = r.project_id
+             LEFT JOIN gifts g ON g.id = r.gift_id
+             LEFT JOIN events ev ON ev.id = r.event_id
              WHERE r.association_id = ? {$dateWhere}
              ORDER BY r.received_on ASC, r.id ASC",
             $params

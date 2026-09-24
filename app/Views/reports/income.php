@@ -45,14 +45,14 @@ $qs = 'from=' . urlencode((string) $from) . '&to=' . urlencode((string) $to);
     </div>
 
     <div class="card overflow-hidden">
-        <div class="border-b border-gray-100 px-6 py-4"><h2 class="font-semibold text-gray-900">By project</h2></div>
+        <div class="border-b border-gray-100 px-6 py-4"><h2 class="font-semibold text-gray-900">By activity</h2></div>
         <div class="overflow-x-auto"><table class="table">
-            <thead><tr><th>Project</th><th class="text-right">Count</th><th class="text-right">Total</th></tr></thead>
+            <thead><tr><th>Activity</th><th class="text-right">Count</th><th class="text-right">Total</th></tr></thead>
             <tbody>
-            <?php foreach ($report['by_project'] as $r): ?>
-                <tr><td><?= e($r['project']) ?></td><td class="text-right"><?= (int) $r['count'] ?></td><td class="text-right font-medium">₹ <?= money($r['total']) ?></td></tr>
+            <?php foreach ($report['by_activity'] as $r): ?>
+                <tr><td><?= e($r['activity']) ?></td><td class="text-right"><?= (int) $r['count'] ?></td><td class="text-right font-medium">₹ <?= money($r['total']) ?></td></tr>
             <?php endforeach; ?>
-            <?php if ($report['by_project'] === []): ?><tr><td colspan="3" class="text-center text-gray-400 py-6">No data.</td></tr><?php endif; ?>
+            <?php if ($report['by_activity'] === []): ?><tr><td colspan="3" class="text-center text-gray-400 py-6">No data.</td></tr><?php endif; ?>
             </tbody>
         </table></div>
     </div>
