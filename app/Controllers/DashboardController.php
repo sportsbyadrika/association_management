@@ -52,6 +52,12 @@ final class DashboardController extends Controller
             'expenditures'   => (float) $db->fetchColumn($expSql, $expParams),
             'projects'       => (int) $db->fetchColumn("SELECT COUNT(*) FROM projects WHERE association_id = ? AND status IN ('planned','active')", [$assocId]),
             'projects_total' => (int) $db->fetchColumn('SELECT COUNT(*) FROM projects WHERE association_id = ?', [$assocId]),
+            // Gifts have no lifecycle status; "active" = donations received (in).
+            'gifts'          => (int) $db->fetchColumn("SELECT COUNT(*) FROM gifts WHERE association_id = ? AND direction = 'in'", [$assocId]),
+            'gifts_total'    => (int) $db->fetchColumn('SELECT COUNT(*) FROM gifts WHERE association_id = ?', [$assocId]),
+            // Events: "active" = still planned (not completed/cancelled).
+            'events'         => (int) $db->fetchColumn("SELECT COUNT(*) FROM events WHERE association_id = ? AND status = 'planned'", [$assocId]),
+            'events_total'   => (int) $db->fetchColumn('SELECT COUNT(*) FROM events WHERE association_id = ?', [$assocId]),
         ];
 
         // Active-member count broken down by member type (current totals).
