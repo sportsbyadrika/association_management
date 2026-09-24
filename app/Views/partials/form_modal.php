@@ -54,9 +54,12 @@
     document.getElementById('formModalBackdrop').addEventListener('click', close);
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { close(); } });
 
-    // The embedded form signals success -> refresh so lists/totals update.
+    // The embedded form signals success -> refresh so lists/totals update;
+    // a cancel/back control just closes the modal without reloading.
     window.addEventListener('message', function (e) {
-        if (e.data && e.data.habitract === 'saved') { close(); window.location.reload(); }
+        if (!e.data) { return; }
+        if (e.data.habitract === 'saved') { close(); window.location.reload(); }
+        else if (e.data.habitract === 'cancel') { close(); }
     });
 })();
 </script>

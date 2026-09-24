@@ -121,7 +121,7 @@ $backUrl = $backProject ? url('/projects/' . $backProject) : url('/expenditures'
         <div class="flex gap-2 border-t border-gray-100 pt-4">
             <button type="submit" class="btn-primary"><?= $exp ? 'Update expenditure' : 'Save expenditure' ?></button>
             <button type="submit" name="save_new" value="1" class="btn-secondary" title="Save and start another entry keeping category, project, head and date">Save &amp; add another</button>
-            <a href="<?= e($backUrl) ?>" class="btn-secondary">Cancel</a>
+            <a href="<?= e($backUrl) ?>" class="btn-secondary"<?= ($embed ?? false) ? ' data-embed-cancel' : '' ?>>Cancel</a>
         </div>
     </form>
 </div>

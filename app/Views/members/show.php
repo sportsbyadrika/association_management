@@ -124,11 +124,13 @@ $additionalMemberships = $additionalMemberships ?? [];
     <div class="mb-3 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-gray-900">Ledger</h2>
         <div class="flex flex-wrap gap-2">
-            <a href="<?= e(url('/demands/create?member_id=' . $member['id'])) ?>" class="btn-secondary btn-sm">Raise due</a>
-            <a href="<?= e(url('/receipts/create?member_id=' . $member['id'])) ?>" class="btn-secondary btn-sm">Record receipt</a>
+            <button type="button" data-form-modal="<?= e(url('/demands/create?member_id=' . $member['id'] . '&embed=1')) ?>" data-form-modal-title="Raise due" class="btn-secondary btn-sm">Raise due</button>
+            <button type="button" data-form-modal="<?= e(url('/receipts/create?member_id=' . $member['id'] . '&embed=1')) ?>" data-form-modal-title="Record receipt" class="btn-secondary btn-sm">Record receipt</button>
             <a href="<?= e(url('/reports/member-ledger?member_id=' . $member['id'] . '&format=csv')) ?>" class="btn-secondary btn-sm">CSV</a>
             <a href="<?= e(url('/reports/member-ledger?member_id=' . $member['id'] . '&format=pdf')) ?>" class="btn-secondary btn-sm">PDF</a>
         </div>
     </div>
     <?php include dirname(__DIR__) . '/partials/ledger_full.php'; ?>
 </div>
+
+<?php include dirname(__DIR__) . '/partials/form_modal.php'; ?>
