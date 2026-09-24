@@ -57,7 +57,6 @@ $fyQ = $fyValue !== '' ? '&fy=' . urlencode($fyValue) : '';
     $cards = [
         ['Total Receipts', '₹ ' . money($stats['receipts']), 'text-emerald-600', '/receipts'],
         ['Total Expenditure', '₹ ' . money($stats['expenditures']), 'text-red-600', '/expenditures'],
-        ['Active Projects', number_format($stats['projects']) . ' / ' . number_format($stats['projects_total'] ?? $stats['projects']), 'text-indigo-600', '/projects'],
     ];
     foreach ($cards as [$label, $value, $color, $href]): ?>
         <<?= $cardTag ?> <?= $canNavigate ? 'href="' . e(url($href)) . '"' : '' ?> class="card card-body block transition hover:shadow-md">
@@ -65,6 +64,28 @@ $fyQ = $fyValue !== '' ? '&fy=' . urlencode($fyValue) : '';
             <p class="mt-2 text-2xl font-bold <?= $color ?>"><?= e($value) ?></p>
         </<?= $cardTag ?>>
     <?php endforeach; ?>
+
+    <!-- Activities: Projects / Gifts / Events (active / total), each links out -->
+    <div class="card card-body">
+        <p class="text-sm font-medium text-gray-500">Activities</p>
+        <dl class="mt-2 space-y-1 text-sm">
+            <?php
+            $activityRows = [
+                ['Projects', (int) $stats['projects'], (int) ($stats['projects_total'] ?? $stats['projects']), '/projects'],
+                ['Gifts', (int) ($stats['gifts'] ?? 0), (int) ($stats['gifts_total'] ?? 0), '/gifts'],
+                ['Events', (int) ($stats['events'] ?? 0), (int) ($stats['events_total'] ?? 0), '/events'],
+            ];
+            foreach ($activityRows as [$label, $active, $total, $href]):
+                $rowTag = $canNavigate ? 'a' : 'div';
+            ?>
+                <<?= $rowTag ?> <?= $canNavigate ? 'href="' . e(url($href)) . '"' : '' ?>
+                    class="flex items-center justify-between rounded-md px-2 py-1 <?= $canNavigate ? 'hover:bg-brand-50' : '' ?>">
+                    <span class="text-gray-600"><?= e($label) ?></span>
+                    <span class="font-bold text-indigo-600"><?= number_format($active) ?> / <?= number_format($total) ?></span>
+                </<?= $rowTag ?>>
+            <?php endforeach; ?>
+        </dl>
+    </div>
 </div>
 
 <div class="mt-4 grid gap-4 sm:grid-cols-3">
