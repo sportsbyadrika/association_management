@@ -1,6 +1,15 @@
-<?php $this->layout('layouts.app');
+<?php $this->layout(($embed ?? false) ? 'layouts.embed' : 'layouts.app');
 /** @var array $details */ /** @var list $members */ /** @var ?string $forName */ /** @var string $forCategory */
 /** @var array $memberAmounts */ /** @var list $invalidIds */ /** @var ?string $error */
+$embed = $embed ?? false;
+$backParams = [];
+if ($embed) {
+    $backParams['embed'] = '1';
+    if ($details['category'] === 'project' && !empty($details['project_id'])) { $backParams['project_id'] = $details['project_id']; }
+    elseif ($details['category'] === 'gift' && !empty($details['gift_id'])) { $backParams['gift_id'] = $details['gift_id']; }
+    elseif ($details['category'] === 'event' && !empty($details['event_id'])) { $backParams['event_id'] = $details['event_id']; }
+}
+$backUrl = url('/demands/create' . ($backParams ? '?' . http_build_query($backParams) : ''));
 $count = count($members);
 $defaultEach = (float) $details['amount'];
 $initialTotal = 0.0;
@@ -11,7 +20,7 @@ $invalidIds = $invalidIds ?? [];
 ?>
 
 <div class="mb-6">
-    <a href="<?= e(url('/demands/create')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to edit</a>
+    <a href="<?= e($backUrl) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to edit</a>
     <h1 class="mt-1 text-2xl font-bold text-gray-900">Confirm Dues</h1>
     <p class="mt-1 text-sm text-gray-500">Review the details. You can fine-tune any member's amount before confirming — one due is created per member.</p>
 </div>
@@ -25,6 +34,7 @@ $invalidIds = $invalidIds ?? [];
 
     <form method="post" action="<?= e(url('/demands/bulk')) ?>" data-amount-sum novalidate>
         <?= csrf_field() ?>
+        <?php if ($embed): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
         <input type="hidden" name="category" value="<?= e((string) $details['category']) ?>">
         <?php if ($details['project_id'] !== null): ?>
             <input type="hidden" name="project_id" value="<?= e((string) $details['project_id']) ?>">
@@ -95,7 +105,7 @@ $invalidIds = $invalidIds ?? [];
 
         <div class="mt-6 flex items-center gap-2 border-t border-gray-100 pt-5">
             <button type="submit" class="btn-primary">Confirm &amp; raise <?= $count ?> due<?= $count === 1 ? '' : 's' ?></button>
-            <a href="<?= e(url('/demands/create')) ?>" class="btn-secondary">Cancel</a>
+            <a href="<?= e($backUrl) ?>" class="btn-secondary">Cancel</a>
         </div>
     </form>
 </div>

@@ -1,4 +1,4 @@
-<?php $this->layout('layouts.app');
+<?php $this->layout(($embed ?? false) ? 'layouts.embed' : 'layouts.app');
 /** @var array|null $expenditure */ /** @var list $heads */ /** @var list $projects */ /** @var list $bankAccounts */
 /** @var int $selectedProject */ /** @var string $selectedCategory */
 /** @var int|null $selectedHead */ /** @var string|null $selectedPaidOn */
@@ -35,6 +35,7 @@ $backUrl = $backProject ? url('/projects/' . $backProject) : url('/expenditures'
 <div class="max-w-2xl card card-body">
     <form method="post" action="<?= e($action) ?>" class="space-y-5" novalidate>
         <?= csrf_field() ?>
+        <?php if ($embed ?? false): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
         <?php if ($backProject): ?><input type="hidden" name="back_project" value="<?= (int) $backProject ?>"><?php endif; ?>
         <div class="grid gap-5 sm:grid-cols-2">
             <div>

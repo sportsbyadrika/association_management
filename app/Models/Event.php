@@ -144,7 +144,7 @@ final class Event extends Model
     public function collectionList(int $eventId): array
     {
         return $this->db->fetchAll(
-            "SELECT r.received_on, r.amount, r.mode, r.remarks,
+            "SELECT r.id, r.received_on, r.amount, r.mode, r.remarks,
                     ih.name AS income_head_name, m.name AS member_name
              FROM receipts r
              LEFT JOIN income_heads ih ON ih.id = r.income_head_id
@@ -162,7 +162,7 @@ final class Event extends Model
     public function expenditureList(int $eventId): array
     {
         return $this->db->fetchAll(
-            "SELECT e.paid_on, e.amount, e.mode, e.remarks, e.category,
+            "SELECT e.id, e.paid_on, e.amount, e.mode, e.remarks, e.category,
                     eh.name AS head_name
              FROM expenditures e
              LEFT JOIN expenditure_heads eh ON eh.id = e.expenditure_head_id

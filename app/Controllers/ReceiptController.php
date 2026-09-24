@@ -125,6 +125,7 @@ final class ReceiptController extends Controller
 
         $this->view('receipts.form', [
             'title'              => 'Record Receipt',
+            'embed'              => $this->wantsEmbed($request),
             'members'            => (new Member())->options($assocId),
             'incomeHeads'        => $incomeHeads,
             'projects'           => (new Project())->options($assocId),
@@ -189,6 +190,9 @@ final class ReceiptController extends Controller
 
         $this->flash('success', 'Receipt recorded.');
 
+        if ($this->wantsEmbed($request)) {
+            $this->embedDone('Receipt recorded');
+        }
         // Return to the member's ledger when the receipt was raised from there.
         if ($returnLedger > 0 && (new Member())->findForAssociation($returnLedger, $assocId) !== null) {
             $this->redirect('/members/' . $returnLedger . '/ledger');
@@ -217,6 +221,7 @@ final class ReceiptController extends Controller
 
         $this->view('receipts.form', [
             'title'              => 'Edit Receipt',
+            'embed'              => $this->wantsEmbed($request),
             'receipt'            => $receipt,
             'members'            => (new Member())->options($assocId),
             'incomeHeads'        => (new Master('income-heads'))->activeForAssociation($assocId),
@@ -278,6 +283,9 @@ final class ReceiptController extends Controller
         }
 
         $this->flash('success', 'Receipt updated.');
+        if ($this->wantsEmbed($request)) {
+            $this->embedDone('Receipt updated');
+        }
         $this->redirect('/receipts');
     }
 

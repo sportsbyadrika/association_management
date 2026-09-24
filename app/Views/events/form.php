@@ -127,7 +127,7 @@ $dStatus = (string) (old('status') !== '' ? old('status') : ($ev['status'] ?? 'p
 
         <div class="flex gap-2 border-t border-gray-100 pt-4">
             <button type="submit" class="btn-primary"><?= $isEdit ? 'Save changes' : 'Save event' ?></button>
-            <a href="<?= e(url('/events')) ?>" class="btn-secondary">Cancel</a>
+            <a href="<?= e(url($isEdit ? '/events/' . $ev['id'] : '/events')) ?>" class="btn-secondary">Cancel</a>
         </div>
     </form>
 </div>
