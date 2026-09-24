@@ -13,6 +13,7 @@ use App\Core\Validator;
 use App\Models\Event;
 use App\Models\Master;
 use App\Models\Member;
+use App\Services\ImageUploader;
 
 /**
  * Events tracker (with an Event Type master). Events can be linked from
@@ -125,6 +126,48 @@ final class EventController extends Controller
         $model->syncMembers((int) $event['id'], $assocId, $pairs);
 
         $this->flash('success', 'Event updated.');
+        $this->redirect('/events/' . $event['id']);
+    }
+
+    /** Upload (or replace) the event's display image. */
+    public function uploadImage(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $model = new Event();
+        $event = $model->findForAssociation((int) $params['id'], $assocId);
+        if ($event === null) {
+            Response::notFound();
+        }
+        $file = $request->file('image');
+        if ($file === null) {
+            $this->flash('error', 'Please choose an image to upload.');
+            $this->redirect('/events/' . $event['id']);
+        }
+        $uploader = new ImageUploader();
+        try {
+            $path = $uploader->store($file, 'events');
+        } catch (\RuntimeException $e) {
+            $this->flash('error', $e->getMessage());
+            $this->redirect('/events/' . $event['id']);
+        }
+        $uploader->delete($event['image_path'] ?? null);
+        $model->update((int) $event['id'], ['image_path' => $path]);
+        $this->flash('success', 'Event image updated.');
+        $this->redirect('/events/' . $event['id']);
+    }
+
+    /** Remove the event's display image. */
+    public function removeImage(Request $request, array $params): void
+    {
+        $assocId = Auth::associationId();
+        $model = new Event();
+        $event = $model->findForAssociation((int) $params['id'], $assocId);
+        if ($event === null) {
+            Response::notFound();
+        }
+        (new ImageUploader())->delete($event['image_path'] ?? null);
+        $model->update((int) $event['id'], ['image_path' => null]);
+        $this->flash('success', 'Event image removed.');
         $this->redirect('/events/' . $event['id']);
     }
 
