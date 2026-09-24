@@ -1,4 +1,4 @@
-<?php $this->layout('layouts.app');
+<?php $this->layout(($embed ?? false) ? 'layouts.embed' : 'layouts.app');
 /** @var array $demand */ /** @var array|null $member */ /** @var string $category */
 /** @var list $projects */ /** @var list $gifts */ /** @var list $events */
 $member = $member ?? null;
@@ -24,6 +24,7 @@ $memberLabel = $member ? ($member['name'] . ($member['member_number'] ? ' (' . $
 
     <form method="post" action="<?= e(url('/demands/' . $demand['id'])) ?>" novalidate class="space-y-5">
         <?= csrf_field() ?>
+        <?php if ($embed ?? false): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
 
         <div>
             <label for="category" class="form-label">Due for *</label>
@@ -88,7 +89,7 @@ $memberLabel = $member ? ($member['name'] . ($member['member_number'] ? ' (' . $
 
         <div class="flex gap-2">
             <button type="submit" class="btn-primary">Save changes</button>
-            <a href="<?= e(url('/demands')) ?>" class="btn-secondary">Cancel</a>
+            <a href="<?= e(url('/demands')) ?>" class="btn-secondary"<?= ($embed ?? false) ? ' data-embed-cancel' : '' ?>>Cancel</a>
         </div>
     </form>
 </div>

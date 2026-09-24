@@ -114,6 +114,7 @@ final class MemberLedger
                 'date'        => $r['received_on'],
                 'type'        => 'Receipt',
                 'kind'        => 'receipt',
+                'receipt_id'  => (int) $r['id'],
                 'bucket'      => $bucket,
                 'description' => 'Payment received' . ($r['remarks'] ? ' — ' . $r['remarks'] : '') . ' (' . str_replace('_', ' ', (string) $r['mode']) . ')',
                 'debit'       => 0.0,

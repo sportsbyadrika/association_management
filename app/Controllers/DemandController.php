@@ -253,6 +253,7 @@ final class DemandController extends Controller
 
         $this->view('demands.edit', [
             'title'    => 'Edit Due',
+            'embed'    => $this->wantsEmbed($request),
             'demand'   => $demand,
             'member'   => (new Member())->findForAssociation((int) $demand['member_id'], $assocId),
             'category' => $category,
@@ -297,6 +298,9 @@ final class DemandController extends Controller
         }
 
         $this->flash('success', 'Due updated.');
+        if ($this->wantsEmbed($request)) {
+            $this->embedDone('Due updated');
+        }
         $this->redirect('/demands');
     }
 

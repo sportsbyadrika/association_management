@@ -59,20 +59,31 @@ $typeBadge = static fn (string $t): string => [
                     <td>
                         <?php if ($isDemand): ?>
                             <span class="badge <?= $statusBadge($row['status']) ?> capitalize"><?= e($row['status']) ?></span>
-                            <?php if ($canRecord && in_array($row['status'], ['pending', 'partial'], true)): ?>
-                                <a href="<?= e(url('/receipts/create?demand_id=' . $row['demand_id'])) ?>"
-                                   class="ml-2 text-sm font-medium text-brand-700 hover:underline">Record receipt<?= $row['remaining'] > 0 ? ' (₹' . money($row['remaining']) . ')' : '' ?></a>
-                                <span class="text-gray-300">·</span>
-                                <form method="post" action="<?= e(url('/demands/' . $row['demand_id'] . '/mark-paid')) ?>" class="inline" data-confirm="Mark this due as paid without recording a receipt?">
-                                    <?= csrf_field() ?>
-                                    <button type="submit" class="text-sm text-gray-500 hover:underline">Mark paid</button>
-                                </form>
-                            <?php elseif ($canRecord && ($row['reopenable'] ?? false)): ?>
-                                <form method="post" action="<?= e(url('/demands/' . $row['demand_id'] . '/reopen')) ?>" class="inline" data-confirm="Reopen this due? It was marked paid without a receipt.">
-                                    <?= csrf_field() ?>
-                                    <button type="submit" class="ml-2 text-sm text-gray-500 hover:underline">Reopen</button>
-                                </form>
+                            <?php if ($canRecord): ?>
+                                <button type="button" data-form-modal="<?= e(url('/demands/' . $row['demand_id'] . '/edit?embed=1')) ?>" data-form-modal-title="Edit due" class="ml-2 text-sm text-brand-700 hover:underline">Edit</button>
+                                <?php if (in_array($row['status'], ['pending', 'partial'], true)): ?>
+                                    <span class="text-gray-300">·</span>
+                                    <button type="button" data-form-modal="<?= e(url('/receipts/create?demand_id=' . $row['demand_id'] . '&embed=1')) ?>" data-form-modal-title="Record receipt" class="text-sm font-medium text-brand-700 hover:underline">Record receipt<?= $row['remaining'] > 0 ? ' (₹' . money($row['remaining']) . ')' : '' ?></button>
+                                    <span class="text-gray-300">·</span>
+                                    <form method="post" action="<?= e(url('/demands/' . $row['demand_id'] . '/mark-paid')) ?>" class="inline" data-confirm="Mark this due as paid without recording a receipt?">
+                                        <?= csrf_field() ?>
+                                        <button type="submit" class="text-sm text-gray-500 hover:underline">Mark paid</button>
+                                    </form>
+                                <?php elseif ($row['reopenable'] ?? false): ?>
+                                    <span class="text-gray-300">·</span>
+                                    <form method="post" action="<?= e(url('/demands/' . $row['demand_id'] . '/reopen')) ?>" class="inline" data-confirm="Reopen this due? It was marked paid without a receipt.">
+                                        <?= csrf_field() ?>
+                                        <button type="submit" class="text-sm text-gray-500 hover:underline">Reopen</button>
+                                    </form>
+                                <?php endif; ?>
                             <?php endif; ?>
+                        <?php elseif (($row['kind'] ?? '') === 'receipt' && $canRecord && !empty($row['receipt_id'])): ?>
+                            <button type="button" data-form-modal="<?= e(url('/receipts/' . $row['receipt_id'] . '/edit?embed=1')) ?>" data-form-modal-title="Edit receipt" class="text-sm text-brand-700 hover:underline">Edit</button>
+                            <span class="text-gray-300">·</span>
+                            <form method="post" action="<?= e(url('/receipts/' . $row['receipt_id'] . '/delete')) ?>" class="inline" data-confirm="Delete this receipt?">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="text-sm text-red-600 hover:underline">Delete</button>
+                            </form>
                         <?php else: ?>
                             <span class="text-gray-300">—</span>
                         <?php endif; ?>
