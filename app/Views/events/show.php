@@ -22,7 +22,8 @@ $statusBadge = [
     </div>
 </div>
 
-<div class="max-w-3xl card card-body">
+<div class="grid gap-6 lg:grid-cols-3">
+<div class="lg:col-span-2 card card-body">
     <div class="flex items-start justify-between">
         <div>
             <h1 class="text-2xl font-bold text-gray-900"><?= e($event['title']) ?></h1>
@@ -59,8 +60,35 @@ $statusBadge = [
     </dl>
 </div>
 
+    <!-- Event image (upload / display) -->
+    <div class="card card-body">
+        <h2 class="mb-3 font-semibold text-gray-900">Event image</h2>
+        <?php if (!empty($event['image_path'])): ?>
+            <img src="<?= e(url('/photo/event/' . $event['id'])) ?>" alt="<?= e($event['title']) ?>" class="w-full rounded-lg object-cover ring-1 ring-gray-200">
+        <?php else: ?>
+            <div class="flex h-40 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 text-sm text-gray-400">
+                No image uploaded
+            </div>
+        <?php endif; ?>
+        <form method="post" action="<?= e(url('/events/' . $event['id'] . '/image')) ?>" enctype="multipart/form-data" class="mt-3 space-y-2">
+            <?= csrf_field() ?>
+            <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required
+                   class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-brand-700">
+            <div class="flex items-center gap-2">
+                <button type="submit" class="btn-primary btn-sm"><?= !empty($event['image_path']) ? 'Replace image' : 'Upload image' ?></button>
+            </div>
+        </form>
+        <?php if (!empty($event['image_path'])): ?>
+            <form method="post" action="<?= e(url('/events/' . $event['id'] . '/image/delete')) ?>" class="mt-2" data-confirm="Remove this event image?">
+                <?= csrf_field() ?>
+                <button type="submit" class="text-sm text-red-600 hover:underline">Remove image</button>
+            </form>
+        <?php endif; ?>
+    </div>
+</div>
+
 <!-- Contributions / Collected / Expenditure tabs -->
-<div class="mt-6 max-w-3xl">
+<div class="mt-6">
     <div class="flex flex-wrap gap-1 border-b border-gray-200">
         <button type="button" data-etab="contributions"
             class="-mb-px border-b-2 border-brand-600 px-4 py-2 text-sm font-medium text-brand-700">

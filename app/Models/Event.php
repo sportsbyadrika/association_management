@@ -13,7 +13,7 @@ final class Event extends Model
     protected array $fillable = [
         'association_id', 'event_type_id', 'title', 'venue', 'location',
         'start_date', 'end_date', 'registration_start', 'registration_end',
-        'status', 'value', 'default_contribution', 'description', 'created_by',
+        'status', 'value', 'default_contribution', 'description', 'image_path', 'created_by',
     ];
 
     /**

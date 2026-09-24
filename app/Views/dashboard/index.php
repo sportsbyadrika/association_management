@@ -15,8 +15,15 @@ $fyQ = $fyValue !== '' ? '&fy=' . urlencode($fyValue) : '';
         <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p class="mt-1 text-sm text-gray-500">Overview of your association's activity.</p>
     </div>
+    <?php
+    // Carry the selected financial year's date range so the report opens
+    // scoped to the same period as the dashboard (totals then tally).
+    $ieQs = $selectedFy
+        ? '?from=' . urlencode((string) ($selectedFy['start_date'] ?? '')) . '&to=' . urlencode((string) ($selectedFy['end_date'] ?? ''))
+        : '';
+    ?>
     <div class="flex flex-wrap items-end gap-2">
-        <a href="<?= e(url('/reports/income-expenditure')) ?>" class="btn-secondary btn-sm">Income &amp; Expenditure</a>
+        <a href="<?= e(url('/reports/income-expenditure' . $ieQs)) ?>" class="btn-secondary btn-sm">Income &amp; Expenditure</a>
         <?php if ($financialYears !== []): ?>
             <form method="get" action="<?= e(url('/dashboard')) ?>" class="flex items-end gap-2">
                 <div>

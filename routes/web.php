@@ -127,6 +127,8 @@ $router->group(['auth' => true, 'roles' => ['association_admin', 'association_st
     $router->post('/events', [EventController::class, 'store']);
     $router->get('/events/{id}', [EventController::class, 'show']);
     $router->get('/events/{id}/edit', [EventController::class, 'edit']);
+    $router->post('/events/{id}/image', [EventController::class, 'uploadImage']);
+    $router->post('/events/{id}/image/delete', [EventController::class, 'removeImage']);
     $router->post('/events/{id}', [EventController::class, 'update']);
     $router->post('/events/{id}/delete', [EventController::class, 'destroy']);
 
