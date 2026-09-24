@@ -76,29 +76,49 @@ $catOptions = ['general' => 'General / Subscription', 'project' => 'Project', 'g
     </div>
 </form>
 
+<?php
+// Group the current page's receipts by date (rows already come ordered by
+// received_on DESC), so each date is a collapsible summary row.
+$byDate = [];
+foreach ($receipts as $r) {
+    $byDate[(string) $r['received_on']][] = $r;
+}
+?>
 <div class="card overflow-hidden">
     <div class="overflow-x-auto">
         <table class="table">
             <thead><tr><th>Date</th><th>Member</th><th>Income Head</th><th>Linked to</th><th>Mode</th><th>Bank</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
             <tbody>
-            <?php foreach ($receipts as $r): ?>
-                <tr>
-                    <td><?= e(format_date($r['received_on'])) ?></td>
-                    <td class="font-medium text-gray-900"><?= e($r['member_name'] ?? '—') ?></td>
-                    <td><?= e($r['income_head_name'] ?? '—') ?></td>
-                    <td><?= e($r['project_name'] ?? $r['gift_name'] ?? $r['event_name'] ?? '—') ?></td>
-                    <td class="capitalize"><?= e(str_replace('_', ' ', $r['mode'])) ?></td>
-                    <td><?= e($r['bank_name'] ?? '—') ?></td>
-                    <td class="text-right font-medium text-brand-700">₹ <?= money($r['amount']) ?></td>
-                    <td class="whitespace-nowrap text-right">
-                        <a href="<?= e(url('/receipts/' . $r['id'] . '/edit')) ?>" class="text-brand-700 hover:underline">Edit</a>
-                        <span class="text-gray-300">·</span>
-                        <form method="post" action="<?= e(url('/receipts/' . $r['id'] . '/delete')) ?>" class="inline" data-confirm="Delete this receipt?">
-                            <?= csrf_field() ?>
-                            <button type="submit" class="text-red-600 hover:underline">Delete</button>
-                        </form>
+            <?php $g = 0; foreach ($byDate as $date => $items): $g++; $gid = 'd' . $g;
+                $dayTotal = array_sum(array_map(static fn ($x) => (float) $x['amount'], $items)); ?>
+                <tr data-date-toggle="<?= $gid ?>" class="cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <td class="font-semibold text-gray-900">
+                        <span data-caret class="inline-block w-3 text-brand-600">&#9656;</span>
+                        <?= e(format_date($date)) ?>
                     </td>
+                    <td colspan="5" class="text-sm text-gray-500"><?= count($items) ?> receipt<?= count($items) === 1 ? '' : 's' ?></td>
+                    <td class="text-right font-semibold text-brand-700">₹ <?= money($dayTotal) ?></td>
+                    <td></td>
                 </tr>
+                <?php foreach ($items as $r): ?>
+                    <tr data-date-group="<?= $gid ?>" class="hidden">
+                        <td class="text-gray-300 text-center">&#8226;</td>
+                        <td class="font-medium text-gray-900"><?= e($r['member_name'] ?? '—') ?></td>
+                        <td><?= e($r['income_head_name'] ?? '—') ?></td>
+                        <td><?= e($r['project_name'] ?? $r['gift_name'] ?? $r['event_name'] ?? '—') ?></td>
+                        <td class="capitalize"><?= e(str_replace('_', ' ', $r['mode'])) ?></td>
+                        <td><?= e($r['bank_name'] ?? '—') ?></td>
+                        <td class="text-right font-medium text-brand-700">₹ <?= money($r['amount']) ?></td>
+                        <td class="whitespace-nowrap text-right">
+                            <a href="<?= e(url('/receipts/' . $r['id'] . '/edit')) ?>" class="text-brand-700 hover:underline">Edit</a>
+                            <span class="text-gray-300">·</span>
+                            <form method="post" action="<?= e(url('/receipts/' . $r['id'] . '/delete')) ?>" class="inline" data-confirm="Delete this receipt?">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="text-red-600 hover:underline">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
             <?php endforeach; ?>
             <?php if ($receipts === []): ?>
                 <tr><td colspan="8" class="text-center text-gray-400 py-8">No receipts found.</td></tr>
@@ -108,3 +128,19 @@ $catOptions = ['general' => 'General / Subscription', 'project' => 'Project', 'g
     </div>
     <div class="p-4"><?php $baseUrl = url('/receipts' . ($filterQs ? '?' . $filterQs : '')); include dirname(__DIR__) . '/partials/pagination.php'; ?></div>
 </div>
+
+<script>
+(function () {
+    document.querySelectorAll('[data-date-toggle]').forEach(function (h) {
+        h.addEventListener('click', function () {
+            var key = h.getAttribute('data-date-toggle');
+            var open = h.classList.toggle('is-open');
+            document.querySelectorAll('[data-date-group="' + key + '"]').forEach(function (row) {
+                row.classList.toggle('hidden', !open);
+            });
+            var caret = h.querySelector('[data-caret]');
+            if (caret) { caret.innerHTML = open ? '&#9662;' : '&#9656;'; }
+        });
+    });
+})();
+</script>
