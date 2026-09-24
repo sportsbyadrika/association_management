@@ -14,7 +14,7 @@
 # Basic security headers (also set in PHP for servers without these modules).
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
-    Header set X-Frame-Options "DENY"
+    Header set X-Frame-Options "SAMEORIGIN"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
