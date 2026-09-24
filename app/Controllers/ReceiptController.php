@@ -313,12 +313,13 @@ final class ReceiptController extends Controller
             'remarks'        => (string) $request->input('remarks', ''),
         ];
         $validator = Validator::make($input, [
-            'category'    => 'required|in:general,project,gift,event',
-            'amount'      => 'required|decimal|min_val:0.01',
-            'mode'        => 'required|in:cash,fund_transfer,adjustment',
-            'received_on' => 'required|date',
-            'remarks'     => 'max:500',
-        ]);
+            'category'       => 'required|in:general,project,gift,event',
+            'income_head_id' => 'required',
+            'amount'         => 'required|decimal|min_val:0.01',
+            'mode'           => 'required|in:cash,fund_transfer,adjustment',
+            'received_on'    => 'required|date',
+            'remarks'        => 'max:500',
+        ], ['income_head_id' => 'Income head']);
         if ($validator->fails()) {
             $this->withErrors($validator->errors(), $input);
         }

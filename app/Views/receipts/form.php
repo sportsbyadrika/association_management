@@ -60,8 +60,8 @@ $selCat = static fn ($c) => $curCat === $c ? 'selected' : '';
                 <?php if ($msg = error_for('member_id')): ?><p class="form-error"><?= e($msg) ?></p><?php endif; ?>
             </div>
             <div>
-                <label for="income_head_id" class="form-label">Income head</label>
-                <select id="income_head_id" name="income_head_id" class="form-select">
+                <label for="income_head_id" class="form-label">Income head *</label>
+                <select id="income_head_id" name="income_head_id" required class="form-select">
                     <option value="">— Select —</option>
                     <?php foreach ($incomeHeads as $h): ?>
                         <option value="<?= (int) $h['id'] ?>" <?= $sel('income_head_id', $h['id'], $selectedIncomeHead) ?>><?= e($h['name']) ?></option>
