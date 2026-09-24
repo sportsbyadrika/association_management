@@ -105,6 +105,7 @@ final class DemandController extends Controller
 
         $this->view('demands.form', [
             'title'           => 'Raise Due',
+            'embed'           => $this->wantsEmbed($request),
             'members'         => (new Member())->selectableForAssociation($assocId),
             'memberTypes'     => (new \App\Models\Master('member-types'))->activeForAssociation($assocId),
             'projects'        => (new Project())->options($assocId),
@@ -135,10 +136,10 @@ final class DemandController extends Controller
             $memberAmounts[(int) $m['id']] = $details['amount'];
         }
 
-        $this->renderConfirm($details, $members, $memberAmounts);
+        $this->renderConfirm($details, $members, $memberAmounts, [], null, $this->wantsEmbed($request));
     }
 
-    private function renderConfirm(array $details, array $members, array $memberAmounts, array $invalidIds = [], ?string $error = null): void
+    private function renderConfirm(array $details, array $members, array $memberAmounts, array $invalidIds = [], ?string $error = null, bool $embed = false): void
     {
         $assocId = Auth::associationId();
 
@@ -155,6 +156,7 @@ final class DemandController extends Controller
 
         $this->view('demands.confirm', [
             'title'         => 'Confirm Dues',
+            'embed'         => $embed,
             'details'       => $details,
             'members'       => $members,
             'forCategory'   => $forCategory,
@@ -193,7 +195,8 @@ final class DemandController extends Controller
 
         if ($invalid !== []) {
             $this->renderConfirm($details, $members, $amounts, $invalid,
-                'Some amounts are invalid. Each amount must be a number greater than zero.');
+                'Some amounts are invalid. Each amount must be a number greater than zero.',
+                $this->wantsEmbed($request));
             return;
         }
 
@@ -223,6 +226,9 @@ final class DemandController extends Controller
         });
 
         $this->flash('success', "{$count} due(s) raised — total ₹" . number_format($total, 2) . '.');
+        if ($this->wantsEmbed($request)) {
+            $this->embedDone('Dues raised');
+        }
         $this->redirect('/demands');
     }
 
@@ -457,7 +463,7 @@ final class DemandController extends Controller
         $members = (new Member())->findManyForAssociation($ids, $assocId);
         if ($members === []) {
             Session::flash('error', 'Please select at least one member.');
-            $this->redirect('/demands/create');
+            $this->back('/demands/create');
         }
         return $members;
     }

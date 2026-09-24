@@ -1,4 +1,4 @@
-<?php $this->layout('layouts.app');
+<?php $this->layout(($embed ?? false) ? 'layouts.embed' : 'layouts.app');
 /** @var array|null $receipt */ /** @var list $members */ /** @var list $incomeHeads */ /** @var list $projects */ /** @var list $bankAccounts */
 /** @var array|null $demand */ /** @var int $demandId */ /** @var string $prefillAmount */ /** @var int $returnLedger */
 /** @var list $gifts */ /** @var list $events */ /** @var int $selectedGift */ /** @var int $selectedEvent */ /** @var string $selectedCategory */
@@ -45,6 +45,7 @@ $selCat = static fn ($c) => $curCat === $c ? 'selected' : '';
 
     <form method="post" action="<?= e($action) ?>" class="space-y-5" novalidate>
         <?= csrf_field() ?>
+        <?php if ($embed ?? false): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
         <?php if ($demandId > 0): ?><input type="hidden" name="demand_id" value="<?= (int) $demandId ?>"><?php endif; ?>
         <?php if ($returnLedger > 0): ?><input type="hidden" name="return_ledger" value="<?= (int) $returnLedger ?>"><?php endif; ?>
         <div class="grid gap-5 sm:grid-cols-2">

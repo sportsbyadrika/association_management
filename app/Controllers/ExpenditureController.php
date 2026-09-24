@@ -73,6 +73,7 @@ final class ExpenditureController extends Controller
         }
         $this->view('expenditures.form', [
             'title'            => 'Record Expenditure',
+            'embed'            => $this->wantsEmbed($request),
             'expenditure'      => null,
             'heads'            => (new Master('expenditure-heads'))->activeForAssociation($assocId),
             'projects'         => (new Project())->options($assocId),
@@ -116,6 +117,9 @@ final class ExpenditureController extends Controller
 
         $this->flash('success', 'Expenditure recorded.');
 
+        if ($this->wantsEmbed($request)) {
+            $this->embedDone('Expenditure recorded');
+        }
         // If the entry was raised from a project page, return there.
         $backProject = (int) $request->input('back_project', 0);
         if ($backProject > 0 && (new Project())->findForAssociation($backProject, $assocId) !== null) {
@@ -133,6 +137,7 @@ final class ExpenditureController extends Controller
         }
         $this->view('expenditures.form', [
             'title'            => 'Edit Expenditure',
+            'embed'            => $this->wantsEmbed($request),
             'expenditure'      => $exp,
             'heads'            => (new Master('expenditure-heads'))->activeForAssociation($assocId),
             'projects'         => (new Project())->options($assocId),
@@ -172,6 +177,9 @@ final class ExpenditureController extends Controller
         }
 
         $this->flash('success', 'Expenditure updated.');
+        if ($this->wantsEmbed($request)) {
+            $this->embedDone('Expenditure updated');
+        }
         $this->redirect('/expenditures');
     }
 

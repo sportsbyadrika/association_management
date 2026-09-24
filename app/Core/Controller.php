@@ -15,6 +15,31 @@ abstract class Controller
         View::render($template, $data);
     }
 
+    /**
+     * Whether the current request wants the "embed" experience (a form loaded
+     * inside a modal iframe). Read from an `embed=1` query/post param.
+     */
+    protected function wantsEmbed(Request $request): bool
+    {
+        return (string) $request->input('embed', '') === '1';
+    }
+
+    /**
+     * End an embed flow: tell the parent window to close the modal and refresh.
+     */
+    protected function embedDone(string $message = 'Saved'): never
+    {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header('Content-Type: text/html; charset=UTF-8');
+        $msg = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+        echo '<!doctype html><meta charset="utf-8"><body style="font-family:system-ui,sans-serif;padding:20px;color:#374151;font-size:14px">'
+            . $msg . '…'
+            . '<script>try{parent.postMessage({habitract:"saved"},"*");}catch(e){}</script>';
+        exit;
+    }
+
     protected function redirect(string $to): never
     {
         Response::redirect($to);

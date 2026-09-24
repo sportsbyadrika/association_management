@@ -1,4 +1,4 @@
-<?php $this->layout('layouts.app');
+<?php $this->layout(($embed ?? false) ? 'layouts.embed' : 'layouts.app');
 /** @var list $members */ /** @var list $memberTypes */ /** @var list $projects */ /** @var list $gifts */ /** @var list $events */
 /** @var list $preselected */ /** @var array $existingDemands */
 /** @var string $presetCategory */ /** @var int $presetProject */ /** @var int $presetGift */ /** @var int $presetEvent */
@@ -22,6 +22,7 @@ $catWrap = static fn (string $c) => 'display:' . ($curCat === $c ? 'block' : 'no
 
     <form method="post" action="<?= e(url('/demands/preview')) ?>" novalidate>
         <?= csrf_field() ?>
+        <?php if ($embed ?? false): ?><input type="hidden" name="embed" value="1"><?php endif; ?>
         <div class="grid gap-6 lg:grid-cols-5">
 
             <!-- Left: due details -->
