@@ -37,9 +37,9 @@ $renderMemberList = static function (array $list): void {
 <div class="mb-6 flex items-center justify-between">
     <a href="<?= e(url('/projects')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to projects</a>
     <div class="flex flex-wrap gap-2">
-        <a href="<?= e(url('/demands/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add due</a>
-        <a href="<?= e(url('/receipts/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add collection</a>
-        <a href="<?= e(url('/expenditures/create?project_id=' . $project['id'])) ?>" class="btn-secondary btn-sm">Add expenditure</a>
+        <button type="button" data-form-modal="<?= e(url('/demands/create?project_id=' . $project['id'] . '&embed=1')) ?>" data-form-modal-title="Add due" class="btn-secondary btn-sm">Add due</button>
+        <button type="button" data-form-modal="<?= e(url('/receipts/create?project_id=' . $project['id'] . '&embed=1')) ?>" data-form-modal-title="Add collection" class="btn-secondary btn-sm">Add collection</button>
+        <button type="button" data-form-modal="<?= e(url('/expenditures/create?project_id=' . $project['id'] . '&embed=1')) ?>" data-form-modal-title="Add expenditure" class="btn-secondary btn-sm">Add expenditure</button>
         <a href="<?= e(url('/projects/' . $project['id'] . '/ledger')) ?>" target="_blank" rel="noopener" class="btn-secondary btn-sm">Print Ledger</a>
         <a href="<?= e(url('/activities/project/' . $project['id'] . '/move')) ?>" class="btn-secondary btn-sm">Move…</a>
         <a href="<?= e(url('/projects/' . $project['id'] . '/edit')) ?>" class="btn-primary btn-sm">Edit</a>
@@ -120,7 +120,7 @@ $renderMemberList = static function (array $list): void {
             </div>
             <div class="overflow-x-auto">
                 <table class="table">
-                    <thead><tr><th>Date</th><th>Income Head</th><th>Received From</th><th>Mode</th><th>Remarks</th><th class="text-right">Amount</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Income Head</th><th>Received From</th><th>Mode</th><th>Remarks</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
                     <tbody>
                     <?php foreach ($otherIncome as $r): ?>
                         <tr>
@@ -130,10 +130,18 @@ $renderMemberList = static function (array $list): void {
                             <td class="capitalize"><?= e(str_replace('_', ' ', $r['mode'])) ?></td>
                             <td class="max-w-xs truncate text-gray-600" title="<?= e($r['remarks'] ?? '') ?>"><?= e($r['remarks'] ?: '—') ?></td>
                             <td class="text-right font-medium text-brand-700">₹ <?= money($r['amount']) ?></td>
+                            <td class="whitespace-nowrap text-right">
+                                <button type="button" data-form-modal="<?= e(url('/receipts/' . $r['id'] . '/edit?embed=1')) ?>" data-form-modal-title="Edit collection" class="text-brand-700 hover:underline">Edit</button>
+                                <span class="text-gray-300">·</span>
+                                <form method="post" action="<?= e(url('/receipts/' . $r['id'] . '/delete')) ?>" class="inline" data-confirm="Delete this receipt?">
+                                    <?= csrf_field() ?>
+                                    <button type="submit" class="text-red-600 hover:underline">Delete</button>
+                                </form>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($otherIncome === []): ?>
-                        <tr><td colspan="6" class="text-center text-gray-400 py-6">No other income recorded. Use <span class="font-medium">Add collection</span> without linking a member due.</td></tr>
+                        <tr><td colspan="7" class="text-center text-gray-400 py-6">No other income recorded. Use <span class="font-medium">Add collection</span> without linking a member due.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>
@@ -145,13 +153,13 @@ $renderMemberList = static function (array $list): void {
             <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
                 <div class="flex items-center gap-3">
                     <h2 class="font-semibold text-gray-900">Expenditure</h2>
-                    <a href="<?= e(url('/expenditures/create?project_id=' . $project['id'])) ?>" class="text-sm text-brand-700 hover:underline">+ Add</a>
+                    <button type="button" data-form-modal="<?= e(url('/expenditures/create?project_id=' . $project['id'] . '&embed=1')) ?>" data-form-modal-title="Add expenditure" class="text-sm text-brand-700 hover:underline">+ Add</button>
                 </div>
                 <span class="text-sm font-semibold text-red-600">₹ <?= money($spent) ?></span>
             </div>
             <div class="overflow-x-auto">
                 <table class="table">
-                    <thead><tr><th>Date</th><th>Head</th><th>Category</th><th>Mode</th><th>Remarks</th><th class="text-right">Amount</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Head</th><th>Category</th><th>Mode</th><th>Remarks</th><th class="text-right">Amount</th><th class="text-right">Actions</th></tr></thead>
                     <tbody>
                     <?php foreach ($expenditures as $r): ?>
                         <tr>
@@ -161,10 +169,18 @@ $renderMemberList = static function (array $list): void {
                             <td class="capitalize"><?= e(str_replace('_', ' ', $r['mode'])) ?></td>
                             <td class="max-w-xs truncate text-gray-600" title="<?= e($r['remarks'] ?? '') ?>"><?= e($r['remarks'] ?: '—') ?></td>
                             <td class="text-right font-medium text-red-600">₹ <?= money($r['amount']) ?></td>
+                            <td class="whitespace-nowrap text-right">
+                                <button type="button" data-form-modal="<?= e(url('/expenditures/' . $r['id'] . '/edit?embed=1')) ?>" data-form-modal-title="Edit expenditure" class="text-brand-700 hover:underline">Edit</button>
+                                <span class="text-gray-300">·</span>
+                                <form method="post" action="<?= e(url('/expenditures/' . $r['id'] . '/delete')) ?>" class="inline" data-confirm="Delete this expenditure?">
+                                    <?= csrf_field() ?>
+                                    <button type="submit" class="text-red-600 hover:underline">Delete</button>
+                                </form>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($expenditures === []): ?>
-                        <tr><td colspan="6" class="text-center text-gray-400 py-6">No expenditure recorded yet.</td></tr>
+                        <tr><td colspan="7" class="text-center text-gray-400 py-6">No expenditure recorded yet.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>
@@ -198,3 +214,5 @@ $renderMemberList = static function (array $list): void {
         </form>
     </div>
 </div>
+
+<?php include dirname(__DIR__) . '/partials/form_modal.php'; ?>

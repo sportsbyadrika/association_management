@@ -17,7 +17,9 @@ final class Response
 
     public static function sendSecurityHeaders(bool $debug): void
     {
-        header('X-Frame-Options: DENY');
+        // SAMEORIGIN (not DENY) so the app can load its own pages inside a modal
+        // iframe; other origins still cannot frame us (clickjacking protection).
+        header('X-Frame-Options: SAMEORIGIN');
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: strict-origin-when-cross-origin');
         header('X-XSS-Protection: 0');
@@ -31,7 +33,8 @@ final class Response
             . "style-src 'self' 'unsafe-inline'; "
             . "script-src 'self' 'unsafe-inline'; "
             . "font-src 'self' data:; "
-            . "frame-ancestors 'none'; "
+            . "frame-src 'self'; "
+            . "frame-ancestors 'self'; "
             . "base-uri 'self'; "
             . "form-action 'self'";
         header('Content-Security-Policy: ' . $csp);

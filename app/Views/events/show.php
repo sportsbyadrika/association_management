@@ -14,9 +14,9 @@ $statusBadge = [
 <div class="mb-6 flex items-center justify-between">
     <a href="<?= e(url('/events')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to events</a>
     <div class="flex flex-wrap gap-2">
-        <button type="button" data-ev-modal="<?= e(url('/receipts/create?category=event&event_id=' . $event['id'] . '&embed=1')) ?>" data-ev-title="Add collection" class="btn-secondary btn-sm">Add collection</button>
-        <button type="button" data-ev-modal="<?= e(url('/demands/create?event_id=' . $event['id'] . '&embed=1')) ?>" data-ev-title="Raise due" class="btn-secondary btn-sm">Raise due</button>
-        <button type="button" data-ev-modal="<?= e(url('/expenditures/create?category=event&event_id=' . $event['id'] . '&embed=1')) ?>" data-ev-title="Add expenditure" class="btn-secondary btn-sm">Add expenditure</button>
+        <button type="button" data-form-modal="<?= e(url('/receipts/create?category=event&event_id=' . $event['id'] . '&embed=1')) ?>" data-form-modal-title="Add collection" class="btn-secondary btn-sm">Add collection</button>
+        <button type="button" data-form-modal="<?= e(url('/demands/create?event_id=' . $event['id'] . '&embed=1')) ?>" data-form-modal-title="Raise due" class="btn-secondary btn-sm">Raise due</button>
+        <button type="button" data-form-modal="<?= e(url('/expenditures/create?category=event&event_id=' . $event['id'] . '&embed=1')) ?>" data-form-modal-title="Add expenditure" class="btn-secondary btn-sm">Add expenditure</button>
         <a href="<?= e(url('/activities/event/' . $event['id'] . '/move')) ?>" class="btn-secondary btn-sm">Move…</a>
         <a href="<?= e(url('/events/' . $event['id'] . '/edit')) ?>" class="btn-primary btn-sm">Edit</a>
     </div>
@@ -137,7 +137,7 @@ $statusBadge = [
             <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
                 <div class="flex items-center gap-3">
                     <h2 class="font-semibold text-gray-900">Collections</h2>
-                    <button type="button" data-ev-modal="<?= e(url('/receipts/create?category=event&event_id=' . $event['id'] . '&embed=1')) ?>" data-ev-title="Add collection" class="text-sm text-brand-700 hover:underline">+ Add</button>
+                    <button type="button" data-form-modal="<?= e(url('/receipts/create?category=event&event_id=' . $event['id'] . '&embed=1')) ?>" data-form-modal-title="Add collection" class="text-sm text-brand-700 hover:underline">+ Add</button>
                 </div>
                 <span class="text-sm font-semibold text-brand-700">₹ <?= money($collected) ?></span>
             </div>
@@ -155,7 +155,7 @@ $statusBadge = [
                             <td class="max-w-xs truncate text-gray-600" title="<?= e($r['remarks'] ?? '') ?>"><?= e($r['remarks'] ?: '—') ?></td>
                             <td class="text-right font-medium text-brand-700">₹ <?= money($r['amount']) ?></td>
                             <td class="whitespace-nowrap text-right">
-                                <button type="button" data-ev-modal="<?= e(url('/receipts/' . $r['id'] . '/edit?embed=1')) ?>" data-ev-title="Edit collection" class="text-brand-700 hover:underline">Edit</button>
+                                <button type="button" data-form-modal="<?= e(url('/receipts/' . $r['id'] . '/edit?embed=1')) ?>" data-form-modal-title="Edit collection" class="text-brand-700 hover:underline">Edit</button>
                                 <span class="text-gray-300">·</span>
                                 <form method="post" action="<?= e(url('/receipts/' . $r['id'] . '/delete')) ?>" class="inline" data-confirm="Delete this receipt?">
                                     <?= csrf_field() ?>
@@ -179,7 +179,7 @@ $statusBadge = [
             <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
                 <div class="flex items-center gap-3">
                     <h2 class="font-semibold text-gray-900">Expenditure</h2>
-                    <button type="button" data-ev-modal="<?= e(url('/expenditures/create?category=event&event_id=' . $event['id'] . '&embed=1')) ?>" data-ev-title="Add expenditure" class="text-sm text-brand-700 hover:underline">+ Add</button>
+                    <button type="button" data-form-modal="<?= e(url('/expenditures/create?category=event&event_id=' . $event['id'] . '&embed=1')) ?>" data-form-modal-title="Add expenditure" class="text-sm text-brand-700 hover:underline">+ Add</button>
                 </div>
                 <span class="text-sm font-semibold text-red-600">₹ <?= money($spent) ?></span>
             </div>
@@ -197,7 +197,7 @@ $statusBadge = [
                             <td class="max-w-xs truncate text-gray-600" title="<?= e($r['remarks'] ?? '') ?>"><?= e($r['remarks'] ?: '—') ?></td>
                             <td class="text-right font-medium text-red-600">₹ <?= money($r['amount']) ?></td>
                             <td class="whitespace-nowrap text-right">
-                                <button type="button" data-ev-modal="<?= e(url('/expenditures/' . $r['id'] . '/edit?embed=1')) ?>" data-ev-title="Edit expenditure" class="text-brand-700 hover:underline">Edit</button>
+                                <button type="button" data-form-modal="<?= e(url('/expenditures/' . $r['id'] . '/edit?embed=1')) ?>" data-form-modal-title="Edit expenditure" class="text-brand-700 hover:underline">Edit</button>
                                 <span class="text-gray-300">·</span>
                                 <form method="post" action="<?= e(url('/expenditures/' . $r['id'] . '/delete')) ?>" class="inline" data-confirm="Delete this expenditure?">
                                     <?= csrf_field() ?>
@@ -238,52 +238,4 @@ $statusBadge = [
 })();
 </script>
 
-<!-- Modal: add/edit collection, expenditure, raise due (loaded in an iframe) -->
-<div id="evModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4">
-    <div id="evModalBackdrop" class="absolute inset-0 bg-black/40"></div>
-    <div class="relative z-10 flex h-[90vh] max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
-        <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
-            <h3 id="evModalTitle" class="font-semibold text-gray-900">Form</h3>
-            <button id="evModalClose" type="button" class="text-2xl leading-none text-gray-400 hover:text-gray-700" aria-label="Close">&times;</button>
-        </div>
-        <iframe id="evModalFrame" title="Form" class="h-full w-full flex-1 border-0"></iframe>
-    </div>
-</div>
-
-<script>
-(function () {
-    var modal = document.getElementById('evModal');
-    var frame = document.getElementById('evModalFrame');
-    var titleEl = document.getElementById('evModalTitle');
-    if (!modal) { return; }
-
-    function open(url, title) {
-        titleEl.textContent = title || 'Form';
-        frame.src = url;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
-    function close() {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        frame.src = 'about:blank';
-    }
-
-    document.querySelectorAll('[data-ev-modal]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            open(btn.getAttribute('data-ev-modal'), btn.getAttribute('data-ev-title'));
-        });
-    });
-    document.getElementById('evModalClose').addEventListener('click', close);
-    document.getElementById('evModalBackdrop').addEventListener('click', close);
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { close(); } });
-
-    // The embedded form signals success; refresh so the tabs/totals update.
-    window.addEventListener('message', function (e) {
-        if (e.data && e.data.habitract === 'saved') {
-            close();
-            window.location.reload();
-        }
-    });
-})();
-</script>
+<?php include dirname(__DIR__) . '/partials/form_modal.php'; ?>
