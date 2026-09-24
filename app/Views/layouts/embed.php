@@ -15,5 +15,15 @@
     </div>
     <script src="<?= e(asset('/assets/js/app.js')) ?>"></script>
     <script src="<?= e(asset('/assets/js/cropper.js')) ?>"></script>
+    <script>
+    // Inside the modal iframe: a cancel/back control closes the modal instead
+    // of navigating the iframe to a list page.
+    document.addEventListener('click', function (e) {
+        var c = e.target.closest ? e.target.closest('[data-embed-cancel]') : null;
+        if (!c) { return; }
+        e.preventDefault();
+        try { parent.postMessage({ habitract: 'cancel' }, '*'); } catch (_) {}
+    });
+    </script>
 </body>
 </html>

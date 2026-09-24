@@ -12,7 +12,7 @@ $catWrap = static fn (string $c) => 'display:' . ($curCat === $c ? 'block' : 'no
 ?>
 
 <div class="mb-6">
-    <a href="<?= e(url('/demands')) ?>" class="text-sm text-gray-500 hover:text-brand-700">&larr; Back to dues</a>
+    <a href="<?= e(url('/demands')) ?>" class="text-sm text-gray-500 hover:text-brand-700"<?= ($embed ?? false) ? ' data-embed-cancel' : '' ?>>&larr; Back to dues</a>
     <h1 class="mt-1 text-2xl font-bold text-gray-900">Raise Due</h1>
     <p class="mt-1 text-sm text-gray-500">Set the due details, pick one or more members, then review before saving.</p>
 </div>
@@ -148,7 +148,7 @@ $catWrap = static fn (string $c) => 'display:' . ($curCat === $c ? 'block' : 'no
 
         <div class="mt-6 flex items-center gap-2 border-t border-gray-100 pt-5">
             <button type="submit" class="btn-primary">Review dues &rarr;</button>
-            <a href="<?= e(url('/demands')) ?>" class="btn-secondary">Cancel</a>
+            <a href="<?= e(url('/demands')) ?>" class="btn-secondary"<?= ($embed ?? false) ? ' data-embed-cancel' : '' ?>>Cancel</a>
         </div>
     </form>
 </div>

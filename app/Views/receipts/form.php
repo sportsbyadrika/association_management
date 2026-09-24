@@ -145,7 +145,7 @@ $selCat = static fn ($c) => $curCat === $c ? 'selected' : '';
         </div>
         <div class="flex gap-2 border-t border-gray-100 pt-4">
             <button type="submit" class="btn-primary"><?= $receipt ? 'Update receipt' : 'Save receipt' ?></button>
-            <a href="<?= e($cancelUrl) ?>" class="btn-secondary">Cancel</a>
+            <a href="<?= e($cancelUrl) ?>" class="btn-secondary"<?= ($embed ?? false) ? ' data-embed-cancel' : '' ?>>Cancel</a>
         </div>
     </form>
 </div>

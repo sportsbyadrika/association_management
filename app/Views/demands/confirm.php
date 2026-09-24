@@ -105,7 +105,7 @@ $invalidIds = $invalidIds ?? [];
 
         <div class="mt-6 flex items-center gap-2 border-t border-gray-100 pt-5">
             <button type="submit" class="btn-primary">Confirm &amp; raise <?= $count ?> due<?= $count === 1 ? '' : 's' ?></button>
-            <a href="<?= e($backUrl) ?>" class="btn-secondary">Cancel</a>
+            <a href="<?= e($backUrl) ?>" class="btn-secondary"<?= $embed ? ' data-embed-cancel' : '' ?>>Cancel</a>
         </div>
     </form>
 </div>
