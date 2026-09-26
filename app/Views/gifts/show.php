@@ -29,7 +29,12 @@ $memberTotal = array_sum(array_map(static fn ($m) => (float) $m['contribution'],
                 <?= $isIn ? 'Donation received (in)' : 'Gift given (out)' ?>
             </span>
         </div>
-        <p class="text-2xl font-bold text-gray-900">₹ <?= money($gift['value']) ?></p>
+    </div>
+
+    <div class="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+        <div><p class="text-gray-500">Value</p><p class="font-semibold">₹ <?= money($gift['value']) ?></p></div>
+        <div><p class="text-gray-500">Collected</p><p class="font-semibold text-brand-700">₹ <?= money($collected) ?></p></div>
+        <div><p class="text-gray-500">Spent</p><p class="font-semibold text-red-600">₹ <?= money($spent) ?></p></div>
     </div>
 
     <dl class="mt-6 space-y-3 text-sm">
@@ -57,7 +62,7 @@ $memberTotal = array_sum(array_map(static fn ($m) => (float) $m['contribution'],
     <div class="flex gap-1 border-b border-gray-200">
         <button type="button" data-gtab="contributions"
             class="-mb-px border-b-2 border-brand-600 px-4 py-2 text-sm font-medium text-brand-700">
-            Contributions <span class="ml-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700">₹ <?= money($collected + $memberTotal) ?></span>
+            Contributions <span class="ml-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700">₹ <?= money($collected) ?></span>
         </button>
         <button type="button" data-gtab="expenditure"
             class="-mb-px border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">
@@ -65,29 +70,8 @@ $memberTotal = array_sum(array_map(static fn ($m) => (float) $m['contribution'],
         </button>
     </div>
 
-    <!-- Contributions panel -->
+    <!-- Contributions panel: actual collections (receipts) only -->
     <div data-gpanel="contributions" class="mt-4 space-y-6">
-        <?php if ($giftMembers !== []): ?>
-        <div class="card overflow-hidden">
-            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                <h2 class="font-semibold text-gray-900">Member contributions</h2>
-                <span class="text-sm font-semibold text-gray-900">₹ <?= money($memberTotal) ?></span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="table">
-                    <thead><tr><th>Member</th><th class="text-right">Contribution</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($giftMembers as $gm): ?>
-                        <tr>
-                            <td><?= e($gm['name']) ?><?= $gm['member_number'] ? ' <span class="text-gray-400">(' . e($gm['member_number']) . ')</span>' : '' ?></td>
-                            <td class="text-right">₹ <?= money($gm['contribution']) ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <?php endif; ?>
 
         <div class="card overflow-hidden">
             <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
