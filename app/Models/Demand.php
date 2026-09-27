@@ -260,6 +260,29 @@ final class Demand extends Model
         );
     }
 
+    /**
+     * Outstanding general/subscription dues (no activity link, not fully paid),
+     * for linking a receipt to a due on the record-receipt form.
+     * @return list<array<string,mixed>>
+     */
+    public function outstandingGeneralDues(int $associationId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT d.id, d.member_id, d.due_date, d.amount,
+                    COALESCE(dp.name, 'Subscription') AS purpose,
+                    GREATEST(d.amount - COALESCE(r.paid, 0), 0) AS remaining
+             FROM demands d
+             LEFT JOIN demand_purposes dp ON dp.id = d.demand_purpose_id
+             LEFT JOIN (SELECT demand_id, SUM(amount) AS paid FROM receipts WHERE association_id = ? GROUP BY demand_id) r
+                 ON r.demand_id = d.id
+             WHERE d.association_id = ? AND d.status <> 'cancelled'
+               AND d.project_id IS NULL AND d.gift_id IS NULL AND d.event_id IS NULL
+               AND (d.amount - COALESCE(r.paid, 0)) > 0.005
+             ORDER BY d.member_id, d.due_date, d.id",
+            [$associationId, $associationId]
+        );
+    }
+
     public function syncStatus(int $demandId): void
     {
         $demand = $this->find($demandId);
