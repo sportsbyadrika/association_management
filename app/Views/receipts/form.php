@@ -79,6 +79,13 @@ $selCat = static fn ($c) => $curCat === $c ? 'selected' : '';
                     <option value="event" <?= $selCat('event') ?>>Event</option>
                 </select>
             </div>
+            <div data-cat-wrap="general" style="display:<?= $curCat === 'general' ? 'block' : 'none' ?>">
+                <label for="link_due" class="form-label">Link to due <span class="font-normal text-gray-400">(optional)</span></label>
+                <select id="link_due" name="demand_id" class="form-select" data-selected="<?= e(old('demand_id')) ?>">
+                    <option value="">— Not linked —</option>
+                </select>
+                <p class="mt-1 text-xs text-gray-400">Pick the member's subscription/general due so this payment updates it and shows in the subscription report.</p>
+            </div>
             <div data-cat-wrap="project" style="display:<?= $curCat === 'project' ? 'block' : 'none' ?>">
                 <label for="project_id" class="form-label">Project</label>
                 <select id="project_id" name="project_id" class="form-select">
@@ -149,3 +156,44 @@ $selCat = static fn ($c) => $curCat === $c ? 'selected' : '';
         </div>
     </form>
 </div>
+
+<script>
+(function () {
+    // Populate the "Link to due" dropdown with the selected member's outstanding
+    // general/subscription dues, so linking a receipt updates the due and makes
+    // it show in the subscription report.
+    var duesByMember = <?= json_encode((object) ($memberDues ?? []), JSON_UNESCAPED_UNICODE) ?>;
+    var memberSel = document.getElementById('member_id');
+    var dueSel = document.getElementById('link_due');
+    var catSel = document.getElementById('category');
+    var amountInput = document.getElementById('amount');
+    if (!dueSel) { return; }
+
+    function populate() {
+        var mid = memberSel ? memberSel.value : '';
+        var cur = dueSel.getAttribute('data-selected') || '';
+        var list = duesByMember[mid] || [];
+        dueSel.innerHTML = '<option value="">— Not linked —</option>';
+        list.forEach(function (d) {
+            var o = document.createElement('option');
+            o.value = d.id;
+            o.textContent = d.label;
+            o.setAttribute('data-remaining', d.remaining);
+            if (String(d.id) === String(cur)) { o.selected = true; }
+            dueSel.appendChild(o);
+        });
+    }
+    if (memberSel) {
+        memberSel.addEventListener('change', function () { dueSel.setAttribute('data-selected', ''); populate(); });
+    }
+    dueSel.addEventListener('change', function () {
+        var opt = dueSel.options[dueSel.selectedIndex];
+        var rem = opt ? opt.getAttribute('data-remaining') : null;
+        if (rem && amountInput) { amountInput.value = rem; }
+    });
+    if (catSel) {
+        catSel.addEventListener('change', function () { if (catSel.value !== 'general') { dueSel.value = ''; } });
+    }
+    populate();
+})();
+</script>

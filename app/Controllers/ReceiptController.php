@@ -126,6 +126,7 @@ final class ReceiptController extends Controller
         $this->view('receipts.form', [
             'title'              => 'Record Receipt',
             'embed'              => $this->wantsEmbed($request),
+            'memberDues'         => $this->memberDuesMap($assocId),
             'members'            => (new Member())->options($assocId),
             'incomeHeads'        => $incomeHeads,
             'projects'           => (new Project())->options($assocId),
@@ -222,6 +223,7 @@ final class ReceiptController extends Controller
         $this->view('receipts.form', [
             'title'              => 'Edit Receipt',
             'embed'              => $this->wantsEmbed($request),
+            'memberDues'         => $this->memberDuesMap($assocId),
             'receipt'            => $receipt,
             'members'            => (new Member())->options($assocId),
             'incomeHeads'        => (new Master('income-heads'))->activeForAssociation($assocId),
@@ -254,11 +256,19 @@ final class ReceiptController extends Controller
 
         $input = $this->validatedInput($request);
 
-        // A receipt's linked demand is fixed on edit; align member/project to it.
-        $demandId = $receipt['demand_id'] ? (int) $receipt['demand_id'] : 0;
+        // An existing link is fixed; an unlinked receipt may be linked to a due
+        // now (the "Link to due" dropdown). Either way, align member/category to
+        // the demand.
+        $existingDemand = $receipt['demand_id'] ? (int) $receipt['demand_id'] : 0;
+        $demandId = $existingDemand > 0 ? $existingDemand : (int) ($input['demand_id'] ?? 0);
         if ($demandId > 0) {
             $demand = (new Demand())->findForAssociation($demandId, $assocId);
-            if ($demand !== null) {
+            if ($demand === null) {
+                if ($existingDemand === 0) {
+                    $this->withErrors(['amount' => 'The selected due is invalid.'], $input);
+                }
+                $demandId = 0;
+            } else {
                 $input['member_id'] = (int) $demand['member_id'];
                 $input['category'] = $this->demandCategory($demand);
                 $input['project_id'] = $demand['project_id'] ? (int) $demand['project_id'] : null;
@@ -271,6 +281,7 @@ final class ReceiptController extends Controller
             'member_id'       => $input['member_id'],
             'income_head_id'  => $input['income_head_id'],
             'category'        => $input['category'],
+            'demand_id'       => $demandId ?: null,
             'amount'          => $input['amount'],
             'mode'            => $input['mode'],
             'bank_account_id' => $input['mode'] === 'fund_transfer' ? $input['bank_account_id'] : ($input['bank_account_id'] ?: null),
@@ -356,6 +367,26 @@ final class ReceiptController extends Controller
             'gift_id'    => $input['category'] === 'gift' ? $input['gift_id'] : null,
             'event_id'   => $input['category'] === 'event' ? $input['event_id'] : null,
         ];
+    }
+
+    /**
+     * Map of member id => their outstanding general/subscription dues, for the
+     * "Link to due" dropdown on the receipt form.
+     * @return array<int, list<array{id:int,remaining:string,label:string}>>
+     */
+    private function memberDuesMap(int $assocId): array
+    {
+        $map = [];
+        foreach ((new Demand())->outstandingGeneralDues($assocId) as $d) {
+            $map[(int) $d['member_id']][] = [
+                'id'        => (int) $d['id'],
+                'remaining' => number_format((float) $d['remaining'], 2, '.', ''),
+                'label'     => $d['purpose']
+                    . ($d['due_date'] ? ' · ' . format_date($d['due_date']) : '')
+                    . ' · ₹' . number_format((float) $d['remaining'], 2) . ' due',
+            ];
+        }
+        return $map;
     }
 
     /** The receipt category implied by a demand's activity link. */
